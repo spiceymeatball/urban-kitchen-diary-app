@@ -22,7 +22,8 @@ export default async function handler(req, res) {
         'Content-Type': 'application/json',
         'Square-Version': '2024-01-18'
       },
-      body: JSON.stringify({
+     body: JSON.stringify({
+        location_ids: [process.env.SQUARE_LOCATION_ID],
         query: {
           filter: {
             date_time_filter: {
@@ -35,8 +36,6 @@ export default async function handler(req, res) {
           }
         }
       })
-    });
-
     const data = await response.json();
     const orders = data.orders || [];
 
