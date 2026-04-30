@@ -144,8 +144,59 @@ export default function App() {
     reader.readAsArrayBuffer(file); e.target.value = "";
   };
 
-  const updateIngredientCell = (ri, rowIdx, colIdx, val) => setRecipes(p => p.map((r, i) => i !== ri ? r : { ...r, ingredients: r.ingredients.map((row, ii) => ii !== rowIdx ? row : row.map((c, ci) => ci === colIdx ? val : c)) }));
-  const updateSummary = (ri, key, val) => setRecipes(p => p.map((r, i) => i !== ri ? r : { ...r, summary: { ...r.summary, [key]: val } }));
+  const recalcSummary = (recipe, updatedIngredients) => {
+    const { summaryFields: sf, headers } = recipe;
+    const hLow = headers.map(h => h.toLowerCase());
+
+    // Find cost and portion columns
+    const costColIdx = findColIdx(headers, ["total cost", "cost"]);
+    const portionColIdx = findColIdx(headers, ["portions per recipe", "portions per"]);
+    const sellColIdx = sf.sellPrice !== -1 ? sf.sellPrice : findColIdx(headers, ["selling price per serve", "sell price"]);
+    const exGstColIdx = sf.sellExGst !== -1 ? sf.sellExGst : findColIdx(headers, ["ex gst"]);
+
+    // Sum total cost from all ingredient rows
+    const totalCost = updatedIngredients.reduce((sum, row) => {
+      const val = parseFloat((row[costColIdx] || "").toString().replace(/[$,]/g, ""));
+      return sum + (isNaN(val) ? 0 : val);
+    }, 0);
+
+    // Get portions from last row or summary
+    const portions = parseFloat(recipe.summary.portions) || 1;
+
+    // Recalculate
+    const costPerServe = portions > 0 ? totalCost / portions : 0;
+    const sellPrice = parseFloat(recipe.summary.sellPrice) || 0;
+    const sellExGst = sellPrice > 0 ? sellPrice / 1.1 : 0;
+    const cogs = sellPrice > 0 ? (costPerServe / sellPrice) * 100 : 0;
+    const gp = 100 - cogs;
+
+    return {
+      ...recipe.summary,
+      totalCost: totalCost.toFixed(4),
+      costPerServe: costPerServe.toFixed(4),
+      sellExGst: sellExGst.toFixed(2),
+      cogs: cogs.toFixed(2),
+      gp: gp.toFixed(2),
+    };
+  };
+
+  const updateIngredientCell = (ri, rowIdx, colIdx, val) => setRecipes(p => p.map((r, i) => {
+    if (i !== ri) return r;
+    const updatedIngredients = r.ingredients.map((row, ii) => ii !== rowIdx ? row : row.map((c, ci) => ci === colIdx ? val : c));
+    const updatedSummary = recalcSummary({ ...r, ingredients: updatedIngredients }, updatedIngredients);
+    return { ...r, ingredients: updatedIngredients, summary: updatedSummary };
+  }));
+
+  const updateSummary = (ri, key, val) => setRecipes(p => p.map((r, i) => {
+    if (i !== ri) return r;
+    const updatedSummary = { ...r.summary, [key]: val };
+    // Recalc when sell price or portions change
+    if (key === "sellPrice" || key === "portions") {
+      const recalc = recalcSummary({ ...r, summary: updatedSummary }, r.ingredients);
+      return { ...r, summary: { ...recalc, [key]: val } };
+    }
+    return { ...r, summary: updatedSummary };
+  }));
   const addIngredientRow = ri => setRecipes(p => p.map((r, i) => i !== ri ? r : { ...r, ingredients: [...r.ingredients, Array(r.headers.length).fill("")] }));
   const deleteIngredientRow = (ri, rowIdx) => setRecipes(p => p.map((r, i) => i !== ri ? r : { ...r, ingredients: r.ingredients.filter((_, ii) => ii !== rowIdx) }));
   const addBlankRecipe = () => {
