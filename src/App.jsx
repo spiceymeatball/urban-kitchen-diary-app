@@ -29,7 +29,204 @@ const cogsColor = v => { const n = parseFloat(v) * (parseFloat(v) <= 1 ? 100 : 1
 const gpColor = v => { const n = parseFloat(v) * (parseFloat(v) <= 1 ? 100 : 1); if (isNaN(n)) return MUTED; if (n >= 70) return GREEN; if (n >= 65) return AMBER; return RED; };
 const findColIdx = (headers, keys) => { const h = headers.map(x => (x || "").toString().toLowerCase().trim()); for (const k of keys) { const i = h.findIndex(x => x.includes(k)); if (i !== -1) return i; } return -1; };
 
-const STORAGE_KEYS = { diary: "uk_diary", biz: "uk_biz", recipes: "uk_recipes" };
+  const INGREDIENT_LIBRARY = [
+    { name: "Bread Roll (pr)", measure: "Box", contentsQty: 48, contentsUnit: "Per Bun", pricePerMeasure: 60.90, unitCost: 60.90/48 },
+    { name: "Eggs", measure: "each", contentsQty: 1, contentsUnit: "per each", pricePerMeasure: 0.29, unitCost: 0.29 },
+    { name: "Cheese Slice", measure: "Pack", contentsQty: 90, contentsUnit: "Per Slice", pricePerMeasure: 15.95, unitCost: 15.95/90 },
+    { name: "Tomato Relish", measure: "Tub", contentsQty: 2700, contentsUnit: "Per Gram", pricePerMeasure: 29.87, unitCost: 29.87/2700 },
+    { name: "Spinach", measure: "Loose (Kg)", contentsQty: 1000, contentsUnit: "Per Gram", pricePerMeasure: 13.50, unitCost: 13.50/1000 },
+    { name: "Bacon", measure: "kg", contentsQty: 1000, contentsUnit: "Per Gram", pricePerMeasure: 12.36, unitCost: 12.36/1000 },
+    { name: "Charcoal Brioche Bun", measure: "Box", contentsQty: 65, contentsUnit: "Per Bun", pricePerMeasure: 92.50, unitCost: 92.50/65 },
+    { name: "Pulled Pork", measure: "kg", contentsQty: 1000, contentsUnit: "Per Gram", pricePerMeasure: 21.12, unitCost: 21.12/1000 },
+    { name: "Slaw Mix", measure: "Bag", contentsQty: 300, contentsUnit: "Per Gram", pricePerMeasure: 3.00, unitCost: 3.00/300 },
+    { name: "House Made BBQ", measure: "kg", contentsQty: 1, contentsUnit: "Per Tablespoon", pricePerMeasure: 0.20, unitCost: 0.20 },
+    { name: "Slaw Dressing", measure: "Tub", contentsQty: 2400, contentsUnit: "Per Gram", pricePerMeasure: 20.33, unitCost: 20.33/2400 },
+    { name: "Flour", measure: "Bag", contentsQty: 10000, contentsUnit: "Per Gram", pricePerMeasure: 11.66, unitCost: 11.66/10000 },
+    { name: "Swiss Cheese", measure: "each", contentsQty: 1, contentsUnit: "each", pricePerMeasure: 0.50, unitCost: 0.50 },
+    { name: "American Cheese", measure: "each", contentsQty: 1, contentsUnit: "each", pricePerMeasure: 0.50, unitCost: 0.50 },
+    { name: "Shredded Cheese", measure: "kg", contentsQty: 5000, contentsUnit: "Per Gram", pricePerMeasure: 57.00, unitCost: 57.00/5000 },
+    { name: "Pulled Pork (alt)", measure: "kg", contentsQty: 1000, contentsUnit: "Per Gram", pricePerMeasure: 30.00, unitCost: 30.00/1000 },
+    { name: "Yogurt", measure: "kg", contentsQty: 10000, contentsUnit: "Per Gram", pricePerMeasure: 41.00, unitCost: 41.00/10000 },
+    { name: "BBQ Sauce", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 20.00, unitCost: 20.00/1000 },
+    { name: "Croissants", measure: "each", contentsQty: 1, contentsUnit: "each", pricePerMeasure: 0.74, unitCost: 0.74 },
+    { name: "Vegan Mayo", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 13.35, unitCost: 13.35/1000 },
+    { name: "Brioche Buns", measure: "each", contentsQty: 1, contentsUnit: "each", pricePerMeasure: 1.20, unitCost: 1.20 },
+    { name: "Mayo", measure: "kg", contentsQty: 15000, contentsUnit: "per gram", pricePerMeasure: 117.00, unitCost: 117.00/15000 },
+    { name: "Butter", measure: "kg", contentsQty: 1500, contentsUnit: "Per Gram", pricePerMeasure: 23.00, unitCost: 23.00/1500 },
+    { name: "Hollandaise", measure: "kg", contentsQty: 1000, contentsUnit: "Per Gram", pricePerMeasure: 14.10, unitCost: 14.10/1000 },
+    { name: "American Mustard", measure: "kg", contentsQty: 2980, contentsUnit: "per gram", pricePerMeasure: 21.84, unitCost: 21.84/2980 },
+    { name: "Sauerkraut", measure: "kg", contentsQty: 2500, contentsUnit: "per gram", pricePerMeasure: 16.00, unitCost: 16.00/2500 },
+    { name: "Smoked Paprika", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 14.55, unitCost: 14.55/1000 },
+    { name: "Frozen Bananas", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 4.63, unitCost: 4.63/1000 },
+    { name: "Frozen Blueberries", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 11.94, unitCost: 11.94/1000 },
+    { name: "Frozen Mango", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 7.50, unitCost: 7.50/1000 },
+    { name: "Frozen Raspberries", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 9.29, unitCost: 9.29/1000 },
+    { name: "Grated Parmesan", measure: "kg", contentsQty: 2000, contentsUnit: "per gram", pricePerMeasure: 41.00, unitCost: 41.00/2000 },
+    { name: "Chocolate", measure: "kg", contentsQty: 15000, contentsUnit: "per gram", pricePerMeasure: 95.00, unitCost: 95.00/15000 },
+    { name: "GF Arnotts Biscuits", measure: "kg", contentsQty: 1440, contentsUnit: "per gram", pricePerMeasure: 56.00, unitCost: 56.00/1440 },
+    { name: "Black Peppercorns", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 23.65, unitCost: 23.65/1000 },
+    { name: "Almond Milk", measure: "lt", contentsQty: 1000, contentsUnit: "per ml", pricePerMeasure: 2.92, unitCost: 2.92/1000 },
+    { name: "Oat Milk", measure: "lt", contentsQty: 1000, contentsUnit: "per ml", pricePerMeasure: 2.92, unitCost: 2.92/1000 },
+    { name: "Soy Milk", measure: "lt", contentsQty: 1000, contentsUnit: "per ml", pricePerMeasure: 3.84, unitCost: 3.84/1000 },
+    { name: "Extra Creamy Milk", measure: "lt", contentsQty: 2000, contentsUnit: "per ml", pricePerMeasure: 3.48, unitCost: 3.48/2000 },
+    { name: "Skim Milk", measure: "lt", contentsQty: 2000, contentsUnit: "per ml", pricePerMeasure: 3.28, unitCost: 3.28/2000 },
+    { name: "Lactose Free Milk", measure: "lt", contentsQty: 1000, contentsUnit: "per ml", pricePerMeasure: 3.59, unitCost: 3.59/1000 },
+    { name: "Condensed Milk", measure: "kg", contentsQty: 12500, contentsUnit: "per gram", pricePerMeasure: 90.00, unitCost: 90.00/12500 },
+    { name: "Dark Brown Sugar", measure: "kg", contentsQty: 3000, contentsUnit: "per gram", pricePerMeasure: 15.25, unitCost: 15.25/3000 },
+    { name: "Brown Rice", measure: "kg", contentsQty: 10000, contentsUnit: "per gram", pricePerMeasure: 29.50, unitCost: 29.50/10000 },
+    { name: "Oats", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 4.11, unitCost: 4.11/1000 },
+    { name: "Desiccated Coconut", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 9.60, unitCost: 9.60/1000 },
+    { name: "Sugar", measure: "kg", contentsQty: 25000, contentsUnit: "per gram", pricePerMeasure: 63.65, unitCost: 63.65/25000 },
+    { name: "White Chocolate", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 17.50, unitCost: 17.50/1000 },
+    { name: "Ground Cinnamon", measure: "kg", contentsQty: 600, contentsUnit: "per gram", pricePerMeasure: 12.90, unitCost: 12.90/600 },
+    { name: "Mediterranean Panini", measure: "each", contentsQty: 1, contentsUnit: "each", pricePerMeasure: 1.78, unitCost: 1.78 },
+    { name: "Sliced Bread", measure: "slice", contentsQty: 1, contentsUnit: "slice", pricePerMeasure: 0.65, unitCost: 0.65 },
+    { name: "Steakhouse Panini", measure: "each", contentsQty: 1, contentsUnit: "each", pricePerMeasure: 1.47, unitCost: 1.47 },
+    { name: "Cream", measure: "lt", contentsQty: 1000, contentsUnit: "per ml", pricePerMeasure: 7.49, unitCost: 7.49/1000 },
+    { name: "Tortilla Plain", measure: "each", contentsQty: 1, contentsUnit: "each", pricePerMeasure: 0.52, unitCost: 0.52 },
+    { name: "Beetroot Tortilla", measure: "each", contentsQty: 1, contentsUnit: "each", pricePerMeasure: 0.80, unitCost: 0.80 },
+    { name: "Spinach Tortilla", measure: "each", contentsQty: 1, contentsUnit: "each", pricePerMeasure: 0.80, unitCost: 0.80 },
+    { name: "Black Sesame Tortilla", measure: "each", contentsQty: 1, contentsUnit: "each", pricePerMeasure: 0.80, unitCost: 0.80 },
+    { name: "Pumpkin Tortilla", measure: "each", contentsQty: 1, contentsUnit: "each", pricePerMeasure: 0.80, unitCost: 0.80 },
+    { name: "Avocado", measure: "each", contentsQty: 1, contentsUnit: "each", pricePerMeasure: 3.50, unitCost: 3.50 },
+    { name: "Kiwi", measure: "each", contentsQty: 1, contentsUnit: "each", pricePerMeasure: 1.20, unitCost: 1.20 },
+    { name: "Strawberries", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 22.00, unitCost: 22.00/1000 },
+    { name: "Cauliflower", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 10.00, unitCost: 10.00/1000 },
+    { name: "Zucchini", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 4.00, unitCost: 4.00/1000 },
+    { name: "Swiss Chard", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 10.50, unitCost: 10.50/1000 },
+    { name: "Broccoli", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 5.00, unitCost: 5.00/1000 },
+    { name: "Rocket", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 10.00, unitCost: 10.00/1000 },
+    { name: "Tomatoes", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 3.80, unitCost: 3.80/1000 },
+    { name: "Coffee Beans", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 26.00, unitCost: 26.00/1000 },
+    { name: "Mushrooms", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 15.00, unitCost: 15.00/1000 },
+    { name: "Decaf Beans", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 42.00, unitCost: 42.00/1000 },
+    { name: "Chicken Thigh", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 14.00, unitCost: 14.00/1000 },
+    { name: "Chicken Breast", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 14.00, unitCost: 14.00/1000 },
+    { name: "Black Angus Rump", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 16.50, unitCost: 16.50/1000 },
+    { name: "Brisket", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 18.00, unitCost: 18.00/1000 },
+    { name: "Scotch Fillet", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 48.00, unitCost: 48.00/1000 },
+    { name: "Jalapeno Sausages", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 20.00, unitCost: 20.00/1000 },
+    { name: "Chorizo", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 26.30, unitCost: 26.30/1000 },
+    { name: "Sliced Ham", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 16.00, unitCost: 16.00/1000 },
+    { name: "Sliced Pastrami", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 26.50, unitCost: 26.50/1000 },
+    { name: "Hash Browns", measure: "each", contentsQty: 1, contentsUnit: "each", pricePerMeasure: 0.23, unitCost: 0.23 },
+    { name: "Burger Mince", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 13.50, unitCost: 13.50/1000 },
+    { name: "Piadina", measure: "each", contentsQty: 1, contentsUnit: "each", pricePerMeasure: 1.75, unitCost: 1.75 },
+    { name: "Plain Bagels", measure: "each", contentsQty: 1, contentsUnit: "each", pricePerMeasure: 1.50, unitCost: 1.50 },
+    { name: "Everything Bagels", measure: "each", contentsQty: 1, contentsUnit: "each", pricePerMeasure: 1.70, unitCost: 1.70 },
+    { name: "Parmesan Bagels", measure: "each", contentsQty: 1, contentsUnit: "each", pricePerMeasure: 1.70, unitCost: 1.70 },
+    { name: "Apple Cider Vinegar", measure: "lt", contentsQty: 2000, contentsUnit: "per ml", pricePerMeasure: 10.00, unitCost: 10.00/2000 },
+    { name: "GF Flour", measure: "kg", contentsQty: 12500, contentsUnit: "per gram", pricePerMeasure: 88.24, unitCost: 88.24/12500 },
+    { name: "GF Baking Powder", measure: "kg", contentsQty: 10000, contentsUnit: "per gram", pricePerMeasure: 90.00, unitCost: 90.00/10000 },
+    { name: "Red Pepper Strips", measure: "kg", contentsQty: 4150, contentsUnit: "per gram", pricePerMeasure: 21.60, unitCost: 21.60/4150 },
+    { name: "Cocoa Powder", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 35.00, unitCost: 35.00/1000 },
+    { name: "Macadamia Milk", measure: "lt", contentsQty: 1000, contentsUnit: "per ml", pricePerMeasure: 4.00, unitCost: 4.00/1000 },
+    { name: "Golden Syrup", measure: "kg", contentsQty: 3000, contentsUnit: "per gram", pricePerMeasure: 35.50, unitCost: 35.50/3000 },
+    { name: "Salted Butter", measure: "kg", contentsQty: 500, contentsUnit: "per gram", pricePerMeasure: 8.20, unitCost: 8.20/500 },
+    { name: "Danish Feta", measure: "kg", contentsQty: 16000, contentsUnit: "per gram", pricePerMeasure: 105.35, unitCost: 105.35/16000 },
+    { name: "Mozzarella", measure: "kg", contentsQty: 10000, contentsUnit: "per gram", pricePerMeasure: 109.00, unitCost: 109.00/10000 },
+    { name: "Haloumi", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 22.69, unitCost: 22.69/1000 },
+    { name: "Vanilla Ice Cream", measure: "kg", contentsQty: 10000, contentsUnit: "per gram", pricePerMeasure: 25.22, unitCost: 25.22/10000 },
+    { name: "Falafel Bites", measure: "each", contentsQty: 1, contentsUnit: "each", pricePerMeasure: 0.72, unitCost: 0.72 },
+    { name: "Hummus", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 13.36, unitCost: 13.36/1000 },
+    { name: "Eggplant Strips", measure: "kg", contentsQty: 2000, contentsUnit: "per gram", pricePerMeasure: 36.00, unitCost: 36.00/2000 },
+    { name: "Table Salt", measure: "kg", contentsQty: 15000, contentsUnit: "per gram", pricePerMeasure: 15.10, unitCost: 15.10/15000 },
+    { name: "Dried Cranberries", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 17.40, unitCost: 17.40/1000 },
+    { name: "Cooked Black Beans", measure: "kg", contentsQty: 3000, contentsUnit: "per gram", pricePerMeasure: 9.45, unitCost: 9.45/3000 },
+    { name: "Canola Spray", measure: "each", contentsQty: 1, contentsUnit: "each", pricePerMeasure: 5.35, unitCost: 5.35 },
+    { name: "Marshmallows", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 9.79, unitCost: 9.79/1000 },
+    { name: "Peanut Butter", measure: "kg", contentsQty: 2000, contentsUnit: "per gram", pricePerMeasure: 25.95, unitCost: 25.95/2000 },
+    { name: "Dijon Mustard", measure: "kg", contentsQty: 2500, contentsUnit: "per gram", pricePerMeasure: 22.90, unitCost: 22.90/2500 },
+    { name: "Nutella", measure: "kg", contentsQty: 3000, contentsUnit: "per gram", pricePerMeasure: 54.00, unitCost: 54.00/3000 },
+    { name: "Coriander Seeds", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 8.30, unitCost: 8.30/1000 },
+    { name: "Red Wine Vinegar", measure: "lt", contentsQty: 5000, contentsUnit: "per ml", pricePerMeasure: 14.00, unitCost: 14.00/5000 },
+    { name: "Quinoa", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 14.50, unitCost: 14.50/1000 },
+    { name: "Capers", measure: "kg", contentsQty: 2000, contentsUnit: "per gram", pricePerMeasure: 18.50, unitCost: 18.50/2000 },
+    { name: "Almond Meal", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 18.00, unitCost: 18.00/1000 },
+    { name: "Pepitas", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 12.46, unitCost: 12.46/1000 },
+    { name: "Pistachios", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 49.80, unitCost: 49.80/1000 },
+    { name: "Sunflower Seeds", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 7.50, unitCost: 7.50/1000 },
+    { name: "Icing Sugar", measure: "kg", contentsQty: 15000, contentsUnit: "per gram", pricePerMeasure: 48.70, unitCost: 48.70/15000 },
+    { name: "Tomato Ketchup", measure: "kg", contentsQty: 4000, contentsUnit: "per gram", pricePerMeasure: 15.68, unitCost: 15.68/4000 },
+    { name: "White Spirit Vinegar", measure: "lt", contentsQty: 15000, contentsUnit: "per ml", pricePerMeasure: 23.00, unitCost: 23.00/15000 },
+    { name: "Pretzel Bun", measure: "each", contentsQty: 1, contentsUnit: "each", pricePerMeasure: 1.33, unitCost: 1.33 },
+    { name: "Poached Chicken", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 18.50, unitCost: 18.50/1000 },
+    { name: "Chipotle Tabasco", measure: "lt", contentsQty: 2980, contentsUnit: "per ml", pricePerMeasure: 60.00, unitCost: 60.00/2980 },
+    { name: "Honey Chillies", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 30.00, unitCost: 30.00/1000 },
+    { name: "Tomato Bread", measure: "slice", contentsQty: 1, contentsUnit: "each", pricePerMeasure: 0.95, unitCost: 0.95 },
+    { name: "Chives", measure: "bunch", contentsQty: 1, contentsUnit: "each", pricePerMeasure: 2.00, unitCost: 2.00 },
+    { name: "White Bread", measure: "slice", contentsQty: 1, contentsUnit: "each", pricePerMeasure: 0.95, unitCost: 0.95 },
+    { name: "Buttermilk Chicken", measure: "kg", contentsQty: 1000, contentsUnit: "per kg", pricePerMeasure: 19.00, unitCost: 19.00/1000 },
+    { name: "Cups 12oz", measure: "each", contentsQty: 1, contentsUnit: "each", pricePerMeasure: 0.12, unitCost: 0.12 },
+    { name: "Cups 8oz", measure: "each", contentsQty: 1, contentsUnit: "each", pricePerMeasure: 0.11, unitCost: 0.11 },
+    { name: "Cups 16oz", measure: "each", contentsQty: 1, contentsUnit: "each", pricePerMeasure: 0.14, unitCost: 0.14 },
+    { name: "Cup Lids", measure: "each", contentsQty: 1, contentsUnit: "each", pricePerMeasure: 0.06, unitCost: 0.06 },
+    { name: "Bananas Peeled", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 5.00, unitCost: 5.00/1000 },
+    { name: "GF Biscuits", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 23.40, unitCost: 23.40/1000 },
+    { name: "Cream Cheese", measure: "kg", contentsQty: 2000, contentsUnit: "per gram", pricePerMeasure: 25.38, unitCost: 25.38/2000 },
+    { name: "Lemons", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 7.50, unitCost: 7.50/1000 },
+    { name: "Onions", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 2.00, unitCost: 2.00/1000 },
+    { name: "Pickles", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 4.50, unitCost: 4.50/1000 },
+    { name: "Herb Garlic Mayo", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 12.80, unitCost: 12.80/1000 },
+    { name: "Pulled Beef", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 22.50, unitCost: 22.50/1000 },
+    { name: "Pickled Cabbage", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 6.00, unitCost: 6.00/1000 },
+    { name: "Chimichurri", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 16.00, unitCost: 16.00/1000 },
+    { name: "Pickled Onions", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 8.00, unitCost: 8.00/1000 },
+    { name: "Baby Cos", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 11.20, unitCost: 11.20/1000 },
+    { name: "Red Pepper Tartare", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 12.00, unitCost: 12.00/1000 },
+    { name: "Roast Pumpkin", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 5.00, unitCost: 5.00/1000 },
+    { name: "Sofrito", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 22.00, unitCost: 22.00/1000 },
+    { name: "Kafiti Pastry", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 15.00, unitCost: 15.00/1000 },
+    { name: "Pistachio Paste", measure: "kg", contentsQty: 5000, contentsUnit: "per gram", pricePerMeasure: 88.00, unitCost: 88.00/5000 },
+    { name: "Chocolate (Callebaut)", measure: "kg", contentsQty: 5000, contentsUnit: "per gram", pricePerMeasure: 105.00, unitCost: 105.00/5000 },
+    { name: "Cranberries", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 18.00, unitCost: 18.00/1000 },
+    { name: "Ham Hock", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 25.00, unitCost: 25.00/1000 },
+    { name: "Bacon & Chorizo Jam", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 35.00, unitCost: 35.00/1000 },
+    { name: "Caramelised Onion Jam", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 20.00, unitCost: 20.00/1000 },
+    { name: "Bechamel", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 9.00, unitCost: 9.00/1000 },
+    { name: "Multigrain Square Bread", measure: "each", contentsQty: 1, contentsUnit: "each", pricePerMeasure: 0.51, unitCost: 0.51 },
+    { name: "Cooked Field Mushrooms", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 18.00, unitCost: 18.00/1000 },
+    { name: "Chocolate Sauce", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 8.91, unitCost: 8.91/1000 },
+    { name: "Sausage Roll Meat", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 10.00, unitCost: 10.00/1000 },
+    { name: "Crema Puff Pastry", measure: "kg", contentsQty: 5000, contentsUnit: "per gram", pricePerMeasure: 63.00, unitCost: 63.00/5000 },
+    { name: "Seasonings", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 20.00, unitCost: 20.00/1000 },
+    { name: "Carrots", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 1.80, unitCost: 1.80/1000 },
+    { name: "Pampas Puff Pastry", measure: "kg", contentsQty: 10000, contentsUnit: "per gram", pricePerMeasure: 55.00, unitCost: 55.00/10000 },
+    { name: "Oil", measure: "lt", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 2.90, unitCost: 2.90/1000 },
+    { name: "Dubai Chocolate", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 21.20, unitCost: 21.20/1000 },
+    { name: "House Made Bacon", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 19.50, unitCost: 19.50/1000 },
+    { name: "Potatoes", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 3.50, unitCost: 3.50/1000 },
+    { name: "Red Onions", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 4.95, unitCost: 4.95/1000 },
+    { name: "Beetroot", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 4.95, unitCost: 4.95/1000 },
+    { name: "Flat Leaf Parsley", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 16.95, unitCost: 16.95/1000 },
+    { name: "Chilli Honey", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 20.00, unitCost: 20.00/1000 },
+    { name: "Garlic", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 17.90, unitCost: 17.90/1000 },
+    { name: "Olive Oil", measure: "lt", contentsQty: 4000, contentsUnit: "per ml", pricePerMeasure: 50.00, unitCost: 50.00/4000 },
+    { name: "Candied Chilli Bacon", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 26.00, unitCost: 26.00/1000 },
+    { name: "House Made Hashbrown", measure: "kg", contentsQty: 2150, contentsUnit: "per gram", pricePerMeasure: 15.07, unitCost: 15.07/2150 },
+    { name: "Maple Syrup", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 39.80, unitCost: 39.80/1000 },
+    { name: "Apples", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 5.90, unitCost: 5.90/1000 },
+    { name: "Strawberry Compote", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 9.90, unitCost: 9.90/1000 },
+    { name: "Honey", measure: "kg", contentsQty: 3000, contentsUnit: "per gram", pricePerMeasure: 35.00, unitCost: 35.00/3000 },
+    { name: "Granola", measure: "kg", contentsQty: 4745, contentsUnit: "per gram", pricePerMeasure: 36.06, unitCost: 36.06/4745 },
+    { name: "Juice", measure: "lt", contentsQty: 375, contentsUnit: "per ml", pricePerMeasure: 4.50, unitCost: 4.50/375 },
+    { name: "Smoked Brisket", measure: "kg", contentsQty: 1000, contentsUnit: "per kg", pricePerMeasure: 35.00, unitCost: 35.00/1000 },
+    { name: "Coke", measure: "each", contentsQty: 24, contentsUnit: "each", pricePerMeasure: 24.95, unitCost: 24.95/24 },
+    { name: "Water", measure: "each", contentsQty: 24, contentsUnit: "each", pricePerMeasure: 11.80, unitCost: 11.80/24 },
+    { name: "100 Plus", measure: "each", contentsQty: 24, contentsUnit: "each", pricePerMeasure: 42.00, unitCost: 42.00/24 },
+    { name: "Arizona Iced Tea", measure: "each", contentsQty: 6, contentsUnit: "each", pricePerMeasure: 16.56, unitCost: 16.56/6 },
+    { name: "Pocari Sweat", measure: "each", contentsQty: 24, contentsUnit: "each", pricePerMeasure: 36.50, unitCost: 36.50/24 },
+    { name: "Famous Soda", measure: "each", contentsQty: 12, contentsUnit: "each", pricePerMeasure: 34.16, unitCost: 34.16/12 },
+    { name: "Strange Love Sparkling 350ml", measure: "each", contentsQty: 24, contentsUnit: "each", pricePerMeasure: 49.60, unitCost: 49.60/24 },
+    { name: "Strange Love Sparkling 750ml", measure: "each", contentsQty: 12, contentsUnit: "each", pricePerMeasure: 43.21, unitCost: 43.21/12 },
+    { name: "Bobby Strawberry & Cream", measure: "each", contentsQty: 8, contentsUnit: "each", pricePerMeasure: 23.20, unitCost: 23.20/8 },
+    { name: "Bobby", measure: "each", contentsQty: 16, contentsUnit: "each", pricePerMeasure: 46.00, unitCost: 46.00/16 },
+    { name: "Watermelon Water", measure: "each", contentsQty: 24, contentsUnit: "each", pricePerMeasure: 67.00, unitCost: 67.00/24 },
+    { name: "Coconut Water", measure: "each", contentsQty: 24, contentsUnit: "each", pricePerMeasure: 67.00, unitCost: 67.00/24 },
+    { name: "Emma & Toms", measure: "each", contentsQty: 10, contentsUnit: "each", pricePerMeasure: 30.90, unitCost: 30.90/10 },
+    { name: "Shaved Bacon", measure: "kg", contentsQty: 1000, contentsUnit: "per gram", pricePerMeasure: 17.95, unitCost: 17.95/1000 },
+    { name: "Sourdough Burger Buns", measure: "each", contentsQty: 1, contentsUnit: "each", pricePerMeasure: 1.40, unitCost: 1.40 },
+  ];
 
 const saveToStorage = async (key, value) => {
   try { await window.storage.set(key, JSON.stringify(value)); } catch (e) { console.error("Save failed:", e); }
@@ -41,7 +238,9 @@ const loadFromStorage = async (key, fallback) => {
 export default function App() {
   const [diary, setDiaryRaw] = useState(initDiary());
   const [biz, setBizRaw] = useState(initBiz());
-  const [recipes, setRecipesRaw] = useState([]);
+  const [ingSearch, setIngSearch] = useState("");
+  const [showIngPicker, setShowIngPicker] = useState(null);
+  const STORAGE_KEYS = { diary: "uk_diary", biz: "uk_biz", recipes: "uk_recipes" };
   const [loaded, setLoaded] = useState(false);
   const [selected, setSelected] = useState(todayIdx);
   const [view, setView] = useState("today");
@@ -341,63 +540,173 @@ export default function App() {
         {view === "food" && (
           <div style={{ maxWidth: 900, margin: "0 auto" }}>
             <h2 style={{ color: OLIVE, fontWeight: "normal", fontSize: 20, marginBottom: 4 }}>Food Cost Calculator</h2>
-            <p style={{ color: MUTED, fontSize: 13, marginTop: 0, marginBottom: 18 }}>Each Excel tab becomes its own recipe card.</p>
-            <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
-              <button onClick={() => foodFileRef.current.click()} style={{ background: OLIVE, color: WHITE, border: "none", borderRadius: 7, padding: "10px 18px", cursor: "pointer", fontSize: 13, fontFamily: "Georgia, serif" }}>📂 Upload Excel File</button>
-              <button onClick={addBlankRecipe} style={{ background: WHITE, color: OLIVE, border: `1px solid ${OLIVE}`, borderRadius: 7, padding: "10px 18px", cursor: "pointer", fontSize: 13, fontFamily: "Georgia, serif" }}>+ New Recipe</button>
-              <input ref={foodFileRef} type="file" accept=".xlsx,.xlsm,.xls" onChange={handleFoodExcel} style={{ display: "none" }} />
+            <p style={{ color: MUTED, fontSize: 13, marginTop: 0, marginBottom: 18 }}>All formulas calculate live as you type.</p>
+            <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
+              <button onClick={() => {
+                const blank = { name: "New Recipe", portionsPerRecipe: 1, sellPrice: 0, ingredients: [{ name: "", measure: "", singleQtyUnit: 0, singleServe: 0, portionQty: 0, actual: 0, unitCost: 0 }] };
+                setRecipes(p => [...p, blank]);
+                setExpandedRecipe(recipes.length);
+              }} style={{ background: OLIVE, color: WHITE, border: "none", borderRadius: 7, padding: "10px 18px", cursor: "pointer", fontSize: 13, fontFamily: "Georgia, serif" }}>+ New Recipe</button>
             </div>
-            {foodError && <div style={{ color: RED, fontSize: 12, marginBottom: 14 }}>{foodError}</div>}
-            {recipes.length > 0 && expandedRecipe === null && <div style={{ color: GREEN, fontSize: 12, marginBottom: 18 }}>✓ {recipes.length} recipe{recipes.length > 1 ? "s" : ""} saved</div>}
 
             {expandedRecipe === null ? (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 16 }}>
-                {recipes.map((r, ri) => (
-                  <div key={ri} onClick={() => setExpandedRecipe(ri)} style={{ background: WHITE, borderRadius: 12, padding: 20, border: `1px solid ${OLIVE_LIGHT}`, cursor: "pointer", position: "relative" }}
-                    onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 16px rgba(107,124,74,0.15)"}
-                    onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}>
-                    <button onClick={ev => { ev.stopPropagation(); setRecipes(p => p.filter((_, i) => i !== ri)); }} style={{ position: "absolute", top: 10, right: 10, background: "none", border: "none", color: OLIVE_LIGHT, cursor: "pointer", fontSize: 18 }}>×</button>
-                    <div style={{ fontSize: 16, fontWeight: "bold", color: OLIVE, marginBottom: 14, paddingRight: 20 }}>{r.name}</div>
-                    <div style={{ fontSize: 12, color: MUTED, marginBottom: 4 }}>{r.ingredients.length} ingredient{r.ingredients.length !== 1 ? "s" : ""}</div>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12, paddingTop: 12, borderTop: `1px solid ${OLIVE_LIGHT}` }}>
-                      <div><div style={{ fontSize: 10, color: MUTED }}>COST/SERVE</div><div style={{ fontSize: 14, color: TEXT, fontWeight: "bold" }}>{r.summary.costPerServe ? fmtMoney(r.summary.costPerServe) : "—"}</div></div>
-                      <div style={{ textAlign: "right" }}><div style={{ fontSize: 10, color: MUTED }}>SELL PRICE</div><div style={{ fontSize: 14, color: TEXT, fontWeight: "bold" }}>{r.summary.sellPrice ? fmtMoney(r.summary.sellPrice) : "—"}</div></div>
+                {recipes.map((r, ri) => {
+                  const totalCost = r.ingredients.reduce((s, ing) => s + (num(ing.unitCost) * num(ing.portionQty)), 0);
+                  const portions = num(r.portionsPerRecipe) || 1;
+                  const costPerServe = totalCost / portions;
+                  const sellPrice = num(r.sellPrice);
+                  const cogs = sellPrice > 0 ? (costPerServe / sellPrice) * 100 : 0;
+                  const gp = 100 - cogs;
+                  return (
+                    <div key={ri} onClick={() => setExpandedRecipe(ri)} style={{ background: WHITE, borderRadius: 12, padding: 20, border: `1px solid ${OLIVE_LIGHT}`, cursor: "pointer", position: "relative" }}
+                      onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 16px rgba(107,124,74,0.15)"}
+                      onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}>
+                      <button onClick={ev => { ev.stopPropagation(); setRecipes(p => p.filter((_, i) => i !== ri)); if (expandedRecipe === ri) setExpandedRecipe(null); }} style={{ position: "absolute", top: 10, right: 10, background: "none", border: "none", color: OLIVE_LIGHT, cursor: "pointer", fontSize: 18 }}>×</button>
+                      <div style={{ fontSize: 16, fontWeight: "bold", color: OLIVE, marginBottom: 6, paddingRight: 20 }}>{r.name || "Unnamed"}</div>
+                      <div style={{ fontSize: 12, color: MUTED, marginBottom: 12 }}>{r.ingredients.length} ingredient{r.ingredients.length !== 1 ? "s" : ""}</div>
+                      <div style={{ borderTop: `1px solid ${OLIVE_LIGHT}`, paddingTop: 12, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                        <div><div style={{ fontSize: 10, color: MUTED }}>TOTAL COST</div><div style={{ fontSize: 13, fontWeight: "bold", color: TEXT }}>{fmtMoney(totalCost)}</div></div>
+                        <div><div style={{ fontSize: 10, color: MUTED }}>COST/SERVE</div><div style={{ fontSize: 13, fontWeight: "bold", color: TEXT }}>{fmtMoney(costPerServe)}</div></div>
+                        <div><div style={{ fontSize: 10, color: MUTED }}>SELL PRICE</div><div style={{ fontSize: 13, fontWeight: "bold", color: TEXT }}>{fmtMoney(sellPrice)}</div></div>
+                        <div><div style={{ fontSize: 10, color: MUTED }}>SELL EX GST</div><div style={{ fontSize: 13, fontWeight: "bold", color: TEXT }}>{fmtMoney(sellPrice / 1.1)}</div></div>
+                        <div><div style={{ fontSize: 10, color: MUTED }}>FOOD COGS %</div><div style={{ fontSize: 13, fontWeight: "bold", color: cogsColor(cogs) }}>{sellPrice > 0 ? `${cogs.toFixed(1)}%` : "—"}</div></div>
+                        <div><div style={{ fontSize: 10, color: MUTED }}>GP %</div><div style={{ fontSize: 13, fontWeight: "bold", color: gpColor(gp) }}>{sellPrice > 0 ? `${gp.toFixed(1)}%` : "—"}</div></div>
+                      </div>
+                      <div style={{ marginTop: 12, fontSize: 11, color: OLIVE_MID }}>Tap to edit →</div>
                     </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10 }}>
-                      <div><div style={{ fontSize: 10, color: MUTED }}>COGS %</div><div style={{ fontSize: 14, fontWeight: "bold", color: cogsColor(r.summary.cogs) }}>{r.summary.cogs ? fmtPct(r.summary.cogs) : "—"}</div></div>
-                      <div style={{ textAlign: "right" }}><div style={{ fontSize: 10, color: MUTED }}>GP %</div><div style={{ fontSize: 14, fontWeight: "bold", color: gpColor(r.summary.gp) }}>{r.summary.gp ? fmtPct(r.summary.gp) : "—"}</div></div>
-                    </div>
-                    <div style={{ marginTop: 12, fontSize: 11, color: OLIVE_MID }}>Tap to edit →</div>
-                  </div>
-                ))}
-                {recipes.length === 0 && (<div style={{ gridColumn: "1/-1", background: WHITE, borderRadius: 12, padding: 40, textAlign: "center", color: MUTED }}><div style={{ fontSize: 40, marginBottom: 12 }}>🍽️</div><div style={{ fontSize: 15, marginBottom: 6 }}>No recipes yet</div><div style={{ fontSize: 13 }}>Upload your Excel file or create a new recipe.</div></div>)}
+                  );
+                })}
+                {recipes.length === 0 && (<div style={{ gridColumn: "1/-1", background: WHITE, borderRadius: 12, padding: 40, textAlign: "center", color: MUTED }}><div style={{ fontSize: 40, marginBottom: 12 }}>🍽️</div><div style={{ fontSize: 15, marginBottom: 6 }}>No recipes yet</div><div style={{ fontSize: 13 }}>Click + New Recipe to get started.</div></div>)}
               </div>
             ) : (() => {
               const r = recipes[expandedRecipe]; const ri = expandedRecipe;
+              const totalCost = r.ingredients.reduce((s, ing) => s + (num(ing.unitCost) * num(ing.portionQty)), 0);
+              const portions = num(r.portionsPerRecipe) || 1;
+              const costPerServe = totalCost / portions;
+              const sellPrice = num(r.sellPrice);
+              const sellExGst = sellPrice / 1.1;
+              const cogs = sellPrice > 0 ? (costPerServe / sellPrice) * 100 : 0;
+              const gp = 100 - cogs;
+
+              const updIng = (idx, key, val) => setRecipes(p => p.map((rec, i) => i !== ri ? rec : { ...rec, ingredients: rec.ingredients.map((ing, ii) => ii !== idx ? ing : { ...ing, [key]: val }) }));
+              const addIng = () => setRecipes(p => p.map((rec, i) => i !== ri ? rec : { ...rec, ingredients: [...rec.ingredients, { name: "", measure: "", singleQtyUnit: 0, singleServe: 0, portionQty: 0, actual: 0, unitCost: 0 }] }));
+              const delIng = idx => setRecipes(p => p.map((rec, i) => i !== ri ? rec : { ...rec, ingredients: rec.ingredients.filter((_, ii) => ii !== idx) }));
+              const updRec = (key, val) => setRecipes(p => p.map((rec, i) => i !== ri ? rec : { ...rec, [key]: val }));
+
+              const inpStyle = (wide) => ({ background: "transparent", border: "none", borderBottom: `1px solid transparent`, fontFamily: "Georgia, serif", fontSize: 12, color: TEXT, outline: "none", padding: "5px 4px", width: wide ? 150 : 70, textAlign: wide ? "left" : "right", boxSizing: "border-box" });
+
               return (
                 <div style={{ background: WHITE, borderRadius: 12, padding: 24 }}>
+                  {/* Header */}
                   <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
                     <button onClick={() => setExpandedRecipe(null)} style={{ background: OLIVE_LIGHT, color: OLIVE, border: "none", borderRadius: 7, padding: "6px 14px", cursor: "pointer", fontSize: 13, fontFamily: "Georgia, serif" }}>← Back</button>
-                    <input value={r.name} onChange={e => setRecipes(p => p.map((rec, i) => i !== ri ? rec : { ...rec, name: e.target.value }))}
+                    <input value={r.name} onChange={e => updRec("name", e.target.value)} placeholder="Recipe name"
                       style={{ fontSize: 20, fontWeight: "bold", color: OLIVE, background: "transparent", border: "none", borderBottom: `2px solid ${OLIVE_LIGHT}`, outline: "none", fontFamily: "Georgia, serif", padding: "2px 4px", flex: 1 }} />
                   </div>
-                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 20 }}>
-                    {[{ label: "TOTAL COST", key: "totalCost" }, { label: "COST/SERVE", key: "costPerServe" }, { label: "SELL PRICE", key: "sellPrice" }, { label: "SELL EX GST", key: "sellExGst" }, { label: "COGS %", key: "cogs", colorFn: cogsColor }, { label: "GP %", key: "gp", colorFn: gpColor }].map(({ label, key, colorFn }) => (
-                      <div key={key} style={{ background: OLIVE_LIGHT, borderRadius: 10, padding: "12px 14px", flex: 1, minWidth: 90 }}>
+
+                  {/* Recipe settings */}
+                  <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+                    <div style={{ background: OLIVE_LIGHT, borderRadius: 10, padding: "12px 14px" }}>
+                      <div style={{ fontSize: 10, color: MUTED, letterSpacing: 1, marginBottom: 6 }}>PORTIONS PER RECIPE</div>
+                      <input type="number" min="1" value={r.portionsPerRecipe} onChange={e => updRec("portionsPerRecipe", e.target.value)}
+                        style={{ background: "transparent", border: "none", borderBottom: `1px solid ${OLIVE_MID}`, fontFamily: "Georgia, serif", fontSize: 16, fontWeight: "bold", color: OLIVE, outline: "none", width: 80, padding: "2px 0" }} />
+                    </div>
+                    <div style={{ background: OLIVE_LIGHT, borderRadius: 10, padding: "12px 14px" }}>
+                      <div style={{ fontSize: 10, color: MUTED, letterSpacing: 1, marginBottom: 6 }}>SELLING PRICE PER SERVE ($)</div>
+                      <input type="number" min="0" step="0.01" value={r.sellPrice} onChange={e => updRec("sellPrice", e.target.value)}
+                        style={{ background: "transparent", border: "none", borderBottom: `1px solid ${OLIVE_MID}`, fontFamily: "Georgia, serif", fontSize: 16, fontWeight: "bold", color: OLIVE, outline: "none", width: 80, padding: "2px 0" }} />
+                    </div>
+                  </div>
+
+                  {/* Live calculated summary */}
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 10, marginBottom: 24 }}>
+                    {[
+                      { label: "TOTAL COST", value: fmtMoney(totalCost), color: TEXT },
+                      { label: "COST PER SERVE", value: fmtMoney(costPerServe), color: TEXT },
+                      { label: "SELL PRICE", value: fmtMoney(sellPrice), color: TEXT },
+                      { label: "SELL EX GST", value: fmtMoney(sellExGst), color: TEXT },
+                      { label: "FOOD COGS %", value: sellPrice > 0 ? `${cogs.toFixed(1)}%` : "—", color: cogsColor(cogs) },
+                      { label: "GP %", value: sellPrice > 0 ? `${gp.toFixed(1)}%` : "—", color: gpColor(gp) },
+                    ].map(({ label, value, color }) => (
+                      <div key={label} style={{ background: OLIVE_LIGHT, borderRadius: 10, padding: "12px 14px" }}>
                         <div style={{ fontSize: 10, color: MUTED, letterSpacing: 1, marginBottom: 6 }}>{label}</div>
-                        <input value={r.summary[key]} onChange={e => updateSummary(ri, key, e.target.value)}
-                          style={{ width: "100%", background: "transparent", border: "none", borderBottom: `1px solid ${OLIVE_MID}`, fontFamily: "Georgia, serif", fontSize: 15, fontWeight: "bold", color: colorFn ? colorFn(r.summary[key]) : OLIVE, outline: "none", padding: "2px 0", boxSizing: "border-box" }} />
+                        <div style={{ fontSize: 15, fontWeight: "bold", color }}>{value}</div>
                       </div>
                     ))}
                   </div>
+
+                  {/* Ingredients table */}
                   <div style={{ fontSize: 11, color: MUTED, letterSpacing: 1, marginBottom: 10 }}>INGREDIENTS</div>
                   <div style={{ overflowX: "auto" }}>
                     <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-                      <thead><tr style={{ background: OLIVE_LIGHT }}>{r.headers.map((h, ci) => (<th key={ci} style={{ padding: "6px 8px", textAlign: ci===0?"left":"right", whiteSpace: "nowrap" }}><input value={h} onChange={e => setRecipes(p => p.map((rec, i) => i!==ri?rec:{ ...rec, headers: rec.headers.map((hh,hi)=>hi===ci?e.target.value:hh) }))} style={{ background: "transparent", border: "none", borderBottom: `1px dashed ${OLIVE_MID}`, fontFamily: "Georgia, serif", fontSize: 11, color: OLIVE, fontWeight: "bold", outline: "none", padding: "2px 4px", width: ci===0?160:75, textAlign: ci===0?"left":"center", boxSizing: "border-box" }} /></th>))}<th style={{ width: 30 }}></th></tr></thead>
-                      <tbody>{r.ingredients.map((row, rowIdx) => (<tr key={rowIdx} style={{ borderBottom: `1px solid ${OLIVE_LIGHT}`, background: rowIdx%2===0?"transparent":"#f9fbf5" }}>{row.map((cell, ci) => (<td key={ci} style={{ padding: "2px 4px" }}><input value={cell} onChange={e => updateIngredientCell(ri, rowIdx, ci, e.target.value)} style={{ background: "transparent", border: "none", borderBottom: "1px solid transparent", fontFamily: "Georgia, serif", fontSize: 12, color: ci===0?TEXT:MUTED, outline: "none", padding: "5px 4px", width: ci===0?155:70, textAlign: ci===0?"left":"right", boxSizing: "border-box" }} onFocus={e => e.target.style.borderBottomColor=OLIVE_MID} onBlur={e => e.target.style.borderBottomColor="transparent"} /></td>))}<td style={{ padding:"2px 4px", textAlign:"center" }}><button onClick={() => deleteIngredientRow(ri, rowIdx)} style={{ background:"none", border:"none", color:OLIVE_LIGHT, cursor:"pointer", fontSize:16 }}>×</button></td></tr>))}</tbody>
+                      <thead>
+                        <tr style={{ background: OLIVE_LIGHT }}>
+                          {["Ingredient", "Measure", "Single Qty Unit", "Single Serve", "Portion Qty", "Actual", "Unit Cost ($)", "Total Cost"].map((h, i) => (
+                            <th key={h} style={{ padding: "8px", textAlign: i === 0 ? "left" : "right", fontSize: 11, color: OLIVE, fontWeight: "bold", whiteSpace: "nowrap" }}>{h}</th>
+                          ))}
+                          <th style={{ width: 30 }}></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {r.ingredients.map((ing, idx) => {
+                          const lineTotal = num(ing.unitCost) * num(ing.portionQty);
+                          return (
+                            <tr key={idx} style={{ borderBottom: `1px solid ${OLIVE_LIGHT}`, background: idx % 2 === 0 ? "transparent" : "#f9fbf5" }}>
+                              <td style={{ padding: "2px 4px", display: "flex", alignItems: "center", gap: 4 }}>
+                                <input value={ing.name} onChange={e => updIng(idx, "name", e.target.value)} placeholder="e.g. Flour" style={{ ...inpStyle(true) }} onFocus={e => e.target.style.borderBottomColor = OLIVE_MID} onBlur={e => e.target.style.borderBottomColor = "transparent"} />
+                                <button onClick={() => { setIngSearch(""); setShowIngPicker({ ri, idx }); }} title="Pick from library" style={{ background: OLIVE_LIGHT, border: `1px solid ${OLIVE_MID}`, borderRadius: 5, padding: "2px 6px", cursor: "pointer", fontSize: 11, color: OLIVE, whiteSpace: "nowrap" }}>📋 Pick</button>
+                              </td>
+                              <td style={{ padding: "2px 4px" }}><input value={ing.measure} onChange={e => updIng(idx, "measure", e.target.value)} placeholder="kg" style={{ ...inpStyle(false) }} onFocus={e => e.target.style.borderBottomColor = OLIVE_MID} onBlur={e => e.target.style.borderBottomColor = "transparent"} /></td>
+                              <td style={{ padding: "2px 4px" }}><input type="number" value={ing.singleQtyUnit} onChange={e => updIng(idx, "singleQtyUnit", e.target.value)} style={{ ...inpStyle(false) }} onFocus={e => e.target.style.borderBottomColor = OLIVE_MID} onBlur={e => e.target.style.borderBottomColor = "transparent"} /></td>
+                              <td style={{ padding: "2px 4px" }}><input type="number" value={ing.singleServe} onChange={e => updIng(idx, "singleServe", e.target.value)} style={{ ...inpStyle(false) }} onFocus={e => e.target.style.borderBottomColor = OLIVE_MID} onBlur={e => e.target.style.borderBottomColor = "transparent"} /></td>
+                              <td style={{ padding: "2px 4px" }}><input type="number" value={ing.portionQty} onChange={e => updIng(idx, "portionQty", e.target.value)} style={{ ...inpStyle(false) }} onFocus={e => e.target.style.borderBottomColor = OLIVE_MID} onBlur={e => e.target.style.borderBottomColor = "transparent"} /></td>
+                              <td style={{ padding: "2px 4px" }}><input type="number" value={ing.actual} onChange={e => updIng(idx, "actual", e.target.value)} style={{ ...inpStyle(false) }} onFocus={e => e.target.style.borderBottomColor = OLIVE_MID} onBlur={e => e.target.style.borderBottomColor = "transparent"} /></td>
+                              <td style={{ padding: "2px 4px" }}><input type="number" value={ing.unitCost} onChange={e => updIng(idx, "unitCost", e.target.value)} style={{ ...inpStyle(false) }} onFocus={e => e.target.style.borderBottomColor = OLIVE_MID} onBlur={e => e.target.style.borderBottomColor = "transparent"} /></td>
+                              <td style={{ padding: "2px 4px", textAlign: "right", fontWeight: "bold", color: OLIVE, paddingRight: 8 }}>{fmtMoney(lineTotal)}</td>
+                              <td style={{ padding: "2px 4px", textAlign: "center" }}><button onClick={() => delIng(idx)} style={{ background: "none", border: "none", color: OLIVE_LIGHT, cursor: "pointer", fontSize: 16 }}>×</button></td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
                     </table>
                   </div>
-                  <button onClick={() => addIngredientRow(ri)} style={{ marginTop: 12, background: OLIVE_LIGHT, color: OLIVE, border: `1px solid ${OLIVE_MID}`, borderRadius: 7, padding: "7px 16px", cursor: "pointer", fontSize: 12, fontFamily: "Georgia, serif" }}>+ Add Ingredient</button>
+                  <button onClick={addIng} style={{ marginTop: 12, background: OLIVE_LIGHT, color: OLIVE, border: `1px solid ${OLIVE_MID}`, borderRadius: 7, padding: "7px 16px", cursor: "pointer", fontSize: 12, fontFamily: "Georgia, serif" }}>+ Add Ingredient</button>
+
+                  {/* Ingredient Picker Modal */}
+                  {showIngPicker && showIngPicker.ri === ri && (
+                    <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <div style={{ background: WHITE, borderRadius: 14, padding: 24, width: "90%", maxWidth: 480, maxHeight: "80vh", display: "flex", flexDirection: "column" }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                          <div style={{ fontSize: 16, fontWeight: "bold", color: OLIVE }}>Pick Ingredient</div>
+                          <button onClick={() => setShowIngPicker(null)} style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: MUTED }}>×</button>
+                        </div>
+                        <input value={ingSearch} onChange={e => setIngSearch(e.target.value)} placeholder="Search ingredients…" autoFocus
+                          style={{ padding: "9px 12px", borderRadius: 8, border: `1px solid ${OLIVE_LIGHT}`, background: OLIVE_LIGHT, fontFamily: "Georgia, serif", fontSize: 13, color: TEXT, outline: "none", marginBottom: 12 }} />
+                        <div style={{ overflowY: "auto", flex: 1 }}>
+                          {INGREDIENT_LIBRARY.filter(i => i.name.toLowerCase().includes(ingSearch.toLowerCase())).map((ing, ii) => (
+                            <div key={ii} onClick={() => {
+                              const { ri, idx } = showIngPicker;
+                              setRecipes(p => p.map((rec, i) => i !== ri ? rec : {
+                                ...rec, ingredients: rec.ingredients.map((row, ii) => ii !== idx ? row : {
+                                  ...row, name: ing.name, measure: ing.measure, unitCost: ing.unitCost, singleQtyUnit: ing.contentsQty
+                                })
+                              }));
+                              setShowIngPicker(null);
+                            }} style={{ padding: "10px 12px", borderRadius: 8, cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}
+                              onMouseEnter={e => e.currentTarget.style.background = OLIVE_LIGHT}
+                              onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                              <div>
+                                <div style={{ fontSize: 13, color: TEXT, fontWeight: "500" }}>{ing.name}</div>
+                                <div style={{ fontSize: 11, color: MUTED }}>{ing.measure} · {ing.contentsUnit}</div>
+                              </div>
+                              <div style={{ fontSize: 13, color: OLIVE, fontWeight: "bold" }}>{fmtMoney(ing.unitCost)}<span style={{ fontSize: 10, color: MUTED }}>/unit</span></div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })()}
