@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from "react";
-import * as XLSX from "xlsx";
 
 const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 const SHORT = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
@@ -11,7 +10,6 @@ const dateStr = today.toLocaleDateString("en-AU",{weekday:"long",day:"numeric",m
 const OLIVE="#6b7c4a", OLIVE_LIGHT="#e8edd8", OLIVE_MID="#9aaa70", WHITE="#ffffff", TEXT="#3a3a2e", MUTED="#8a9070", RED="#c0392b", GREEN="#4a7c59", AMBER="#c47c00";
 
 const fmtMoney = v => { const n=parseFloat(v); if(isNaN(n)) return "—"; return `$${(Math.ceil(n*100)/100).toLocaleString("en-AU",{minimumFractionDigits:2,maximumFractionDigits:2})}`; };
-const fmtPct = v => { const n=parseFloat(v); if(isNaN(n)) return "—"; return `${(n<=1?n*100:n).toFixed(1)}%`; };
 const num = v => parseFloat(v)||0;
 const cogsColor = v => { const n=parseFloat(v)*(parseFloat(v)<=1?100:1); if(isNaN(n)) return MUTED; if(n<=30) return GREEN; if(n<=35) return AMBER; return RED; };
 const gpColor = v => { const n=parseFloat(v)*(parseFloat(v)<=1?100:1); if(isNaN(n)) return MUTED; if(n>=70) return GREEN; if(n>=65) return AMBER; return RED; };
@@ -24,7 +22,7 @@ const saveData = async (key,val) => { try { await window.storage.set(key,JSON.st
 const loadData = async (key,fb) => { try { const r=await window.storage.get(key); return r?JSON.parse(r.value):fb; } catch { return fb; } };
 
 const INGREDIENT_LIBRARY = [
-  {name:"Bread Roll (pr)",measure:"Box",contentsQty:48,contentsUnit:"Per Bun",unitCost:60.90/48},
+  {name:"Bread Roll",measure:"Box",contentsQty:48,contentsUnit:"Per Bun",unitCost:60.90/48},
   {name:"Eggs",measure:"each",contentsQty:1,contentsUnit:"per each",unitCost:0.29},
   {name:"Cheese Slice",measure:"Pack",contentsQty:90,contentsUnit:"Per Slice",unitCost:15.95/90},
   {name:"Tomato Relish",measure:"Tub",contentsQty:2700,contentsUnit:"Per Gram",unitCost:29.87/2700},
@@ -39,7 +37,6 @@ const INGREDIENT_LIBRARY = [
   {name:"Swiss Cheese",measure:"each",contentsQty:1,contentsUnit:"each",unitCost:0.50},
   {name:"American Cheese",measure:"each",contentsQty:1,contentsUnit:"each",unitCost:0.50},
   {name:"Shredded Cheese",measure:"kg",contentsQty:5000,contentsUnit:"Per Gram",unitCost:57.00/5000},
-  {name:"Pulled Pork (alt)",measure:"kg",contentsQty:1000,contentsUnit:"Per Gram",unitCost:30.00/1000},
   {name:"Yogurt",measure:"kg",contentsQty:10000,contentsUnit:"Per Gram",unitCost:41.00/10000},
   {name:"BBQ Sauce",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:20.00/1000},
   {name:"Croissants",measure:"each",contentsQty:1,contentsUnit:"each",unitCost:0.74},
@@ -80,14 +77,11 @@ const INGREDIENT_LIBRARY = [
   {name:"Tortilla Plain",measure:"each",contentsQty:1,contentsUnit:"each",unitCost:0.52},
   {name:"Beetroot Tortilla",measure:"each",contentsQty:1,contentsUnit:"each",unitCost:0.80},
   {name:"Spinach Tortilla",measure:"each",contentsQty:1,contentsUnit:"each",unitCost:0.80},
-  {name:"Black Sesame Tortilla",measure:"each",contentsQty:1,contentsUnit:"each",unitCost:0.80},
-  {name:"Pumpkin Tortilla",measure:"each",contentsQty:1,contentsUnit:"each",unitCost:0.80},
   {name:"Avocado",measure:"each",contentsQty:1,contentsUnit:"each",unitCost:3.50},
   {name:"Kiwi",measure:"each",contentsQty:1,contentsUnit:"each",unitCost:1.20},
   {name:"Strawberries",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:22.00/1000},
   {name:"Cauliflower",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:10.00/1000},
   {name:"Zucchini",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:4.00/1000},
-  {name:"Swiss Chard",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:10.50/1000},
   {name:"Broccoli",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:5.00/1000},
   {name:"Rocket",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:10.00/1000},
   {name:"Tomatoes",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:3.80/1000},
@@ -112,7 +106,6 @@ const INGREDIENT_LIBRARY = [
   {name:"Apple Cider Vinegar",measure:"lt",contentsQty:2000,contentsUnit:"per ml",unitCost:10.00/2000},
   {name:"GF Flour",measure:"kg",contentsQty:12500,contentsUnit:"per gram",unitCost:88.24/12500},
   {name:"GF Baking Powder",measure:"kg",contentsQty:10000,contentsUnit:"per gram",unitCost:90.00/10000},
-  {name:"Red Pepper Strips",measure:"kg",contentsQty:4150,contentsUnit:"per gram",unitCost:21.60/4150},
   {name:"Cocoa Powder",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:35.00/1000},
   {name:"Macadamia Milk",measure:"lt",contentsQty:1000,contentsUnit:"per ml",unitCost:4.00/1000},
   {name:"Golden Syrup",measure:"kg",contentsQty:3000,contentsUnit:"per gram",unitCost:35.50/3000},
@@ -127,36 +120,21 @@ const INGREDIENT_LIBRARY = [
   {name:"Table Salt",measure:"kg",contentsQty:15000,contentsUnit:"per gram",unitCost:15.10/15000},
   {name:"Dried Cranberries",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:17.40/1000},
   {name:"Cooked Black Beans",measure:"kg",contentsQty:3000,contentsUnit:"per gram",unitCost:9.45/3000},
-  {name:"Canola Spray",measure:"each",contentsQty:1,contentsUnit:"each",unitCost:5.35},
   {name:"Marshmallows",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:9.79/1000},
   {name:"Peanut Butter",measure:"kg",contentsQty:2000,contentsUnit:"per gram",unitCost:25.95/2000},
   {name:"Dijon Mustard",measure:"kg",contentsQty:2500,contentsUnit:"per gram",unitCost:22.90/2500},
   {name:"Nutella",measure:"kg",contentsQty:3000,contentsUnit:"per gram",unitCost:54.00/3000},
-  {name:"Coriander Seeds",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:8.30/1000},
-  {name:"Red Wine Vinegar",measure:"lt",contentsQty:5000,contentsUnit:"per ml",unitCost:14.00/5000},
   {name:"Quinoa",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:14.50/1000},
   {name:"Capers",measure:"kg",contentsQty:2000,contentsUnit:"per gram",unitCost:18.50/2000},
   {name:"Almond Meal",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:18.00/1000},
   {name:"Pepitas",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:12.46/1000},
   {name:"Pistachios",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:49.80/1000},
-  {name:"Sunflower Seeds",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:7.50/1000},
   {name:"Icing Sugar",measure:"kg",contentsQty:15000,contentsUnit:"per gram",unitCost:48.70/15000},
-  {name:"Tomato Ketchup",measure:"kg",contentsQty:4000,contentsUnit:"per gram",unitCost:15.68/4000},
-  {name:"White Spirit Vinegar",measure:"lt",contentsQty:15000,contentsUnit:"per ml",unitCost:23.00/15000},
   {name:"Pretzel Bun",measure:"each",contentsQty:1,contentsUnit:"each",unitCost:1.33},
   {name:"Poached Chicken",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:18.50/1000},
-  {name:"Chipotle Tabasco",measure:"lt",contentsQty:2980,contentsUnit:"per ml",unitCost:60.00/2980},
   {name:"Honey Chillies",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:30.00/1000},
-  {name:"Tomato Bread",measure:"slice",contentsQty:1,contentsUnit:"each",unitCost:0.95},
   {name:"Chives",measure:"bunch",contentsQty:1,contentsUnit:"each",unitCost:2.00},
-  {name:"White Bread",measure:"slice",contentsQty:1,contentsUnit:"each",unitCost:0.95},
   {name:"Buttermilk Chicken",measure:"kg",contentsQty:1000,contentsUnit:"per kg",unitCost:19.00/1000},
-  {name:"Cups 12oz",measure:"each",contentsQty:1,contentsUnit:"each",unitCost:0.12},
-  {name:"Cups 8oz",measure:"each",contentsQty:1,contentsUnit:"each",unitCost:0.11},
-  {name:"Cups 16oz",measure:"each",contentsQty:1,contentsUnit:"each",unitCost:0.14},
-  {name:"Cup Lids",measure:"each",contentsQty:1,contentsUnit:"each",unitCost:0.06},
-  {name:"Bananas Peeled",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:5.00/1000},
-  {name:"GF Biscuits",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:23.40/1000},
   {name:"Cream Cheese",measure:"kg",contentsQty:2000,contentsUnit:"per gram",unitCost:25.38/2000},
   {name:"Lemons",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:7.50/1000},
   {name:"Onions",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:2.00/1000},
@@ -167,57 +145,31 @@ const INGREDIENT_LIBRARY = [
   {name:"Chimichurri",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:16.00/1000},
   {name:"Pickled Onions",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:8.00/1000},
   {name:"Baby Cos",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:11.20/1000},
-  {name:"Red Pepper Tartare",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:12.00/1000},
   {name:"Roast Pumpkin",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:5.00/1000},
   {name:"Sofrito",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:22.00/1000},
-  {name:"Kafiti Pastry",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:15.00/1000},
   {name:"Pistachio Paste",measure:"kg",contentsQty:5000,contentsUnit:"per gram",unitCost:88.00/5000},
-  {name:"Chocolate (Callebaut)",measure:"kg",contentsQty:5000,contentsUnit:"per gram",unitCost:105.00/5000},
-  {name:"Cranberries",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:18.00/1000},
+  {name:"Chocolate Callebaut",measure:"kg",contentsQty:5000,contentsUnit:"per gram",unitCost:105.00/5000},
   {name:"Ham Hock",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:25.00/1000},
   {name:"Bacon & Chorizo Jam",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:35.00/1000},
   {name:"Caramelised Onion Jam",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:20.00/1000},
   {name:"Bechamel",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:9.00/1000},
-  {name:"Multigrain Square Bread",measure:"each",contentsQty:1,contentsUnit:"each",unitCost:0.51},
-  {name:"Cooked Field Mushrooms",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:18.00/1000},
   {name:"Chocolate Sauce",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:8.91/1000},
   {name:"Sausage Roll Meat",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:10.00/1000},
-  {name:"Crema Puff Pastry",measure:"kg",contentsQty:5000,contentsUnit:"per gram",unitCost:63.00/5000},
-  {name:"Seasonings",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:20.00/1000},
   {name:"Carrots",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:1.80/1000},
-  {name:"Pampas Puff Pastry",measure:"kg",contentsQty:10000,contentsUnit:"per gram",unitCost:55.00/10000},
   {name:"Oil",measure:"lt",contentsQty:1000,contentsUnit:"per gram",unitCost:2.90/1000},
   {name:"Dubai Chocolate",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:21.20/1000},
   {name:"House Made Bacon",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:19.50/1000},
   {name:"Potatoes",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:3.50/1000},
   {name:"Red Onions",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:4.95/1000},
   {name:"Beetroot",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:4.95/1000},
-  {name:"Flat Leaf Parsley",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:16.95/1000},
-  {name:"Chilli Honey",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:20.00/1000},
   {name:"Garlic",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:17.90/1000},
   {name:"Olive Oil",measure:"lt",contentsQty:4000,contentsUnit:"per ml",unitCost:50.00/4000},
-  {name:"Candied Chilli Bacon",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:26.00/1000},
-  {name:"House Made Hashbrown",measure:"kg",contentsQty:2150,contentsUnit:"per gram",unitCost:15.07/2150},
   {name:"Maple Syrup",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:39.80/1000},
-  {name:"Apples",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:5.90/1000},
-  {name:"Strawberry Compote",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:9.90/1000},
   {name:"Honey",measure:"kg",contentsQty:3000,contentsUnit:"per gram",unitCost:35.00/3000},
   {name:"Granola",measure:"kg",contentsQty:4745,contentsUnit:"per gram",unitCost:36.06/4745},
-  {name:"Juice",measure:"lt",contentsQty:375,contentsUnit:"per ml",unitCost:4.50/375},
   {name:"Smoked Brisket",measure:"kg",contentsQty:1000,contentsUnit:"per kg",unitCost:35.00/1000},
   {name:"Coke",measure:"each",contentsQty:24,contentsUnit:"each",unitCost:24.95/24},
   {name:"Water",measure:"each",contentsQty:24,contentsUnit:"each",unitCost:11.80/24},
-  {name:"100 Plus",measure:"each",contentsQty:24,contentsUnit:"each",unitCost:42.00/24},
-  {name:"Arizona Iced Tea",measure:"each",contentsQty:6,contentsUnit:"each",unitCost:16.56/6},
-  {name:"Pocari Sweat",measure:"each",contentsQty:24,contentsUnit:"each",unitCost:36.50/24},
-  {name:"Famous Soda",measure:"each",contentsQty:12,contentsUnit:"each",unitCost:34.16/12},
-  {name:"Strange Love 350ml",measure:"each",contentsQty:24,contentsUnit:"each",unitCost:49.60/24},
-  {name:"Strange Love 750ml",measure:"each",contentsQty:12,contentsUnit:"each",unitCost:43.21/12},
-  {name:"Bobby Strawberry & Cream",measure:"each",contentsQty:8,contentsUnit:"each",unitCost:23.20/8},
-  {name:"Bobby",measure:"each",contentsQty:16,contentsUnit:"each",unitCost:46.00/16},
-  {name:"Watermelon Water",measure:"each",contentsQty:24,contentsUnit:"each",unitCost:67.00/24},
-  {name:"Coconut Water",measure:"each",contentsQty:24,contentsUnit:"each",unitCost:67.00/24},
-  {name:"Emma & Toms",measure:"each",contentsQty:10,contentsUnit:"each",unitCost:30.90/10},
   {name:"Shaved Bacon",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:17.95/1000},
   {name:"Sourdough Burger Buns",measure:"each",contentsQty:1,contentsUnit:"each",unitCost:1.40},
 ];
@@ -235,6 +187,9 @@ export default function App() {
   const [ingSearch, setIngSearch] = useState("");
   const [showIngPicker, setShowIngPicker] = useState(null);
   const [saveStatus, setSaveStatus] = useState("");
+  const [squareData, setSquareData] = useState(null);
+  const [squareLoading, setSquareLoading] = useState(false);
+  const [squareError, setSquareError] = useState("");
   const bizFileRef = useRef();
   const importRef = useRef();
 
@@ -248,49 +203,43 @@ export default function App() {
     })();
   }, []);
 
-  const showSaved = () => { setSaveStatus("Saved ✓"); setTimeout(() => setSaveStatus(""), 2000); };
-  const setDiary = fn => setDiaryRaw(p => { const n=typeof fn==="function"?fn(p):fn; saveData(STORAGE_KEYS.diary,n).then(showSaved); return n; });
-  const setBiz = fn => setBizRaw(p => { const n=typeof fn==="function"?fn(p):fn; saveData(STORAGE_KEYS.biz,n).then(showSaved); return n; });
-  const setRecipes = fn => setRecipesRaw(p => { const n=typeof fn==="function"?fn(p):fn; saveData(STORAGE_KEYS.recipes,n).then(showSaved); return n; });
+  const showSaved = () => { setSaveStatus("Saved ✓"); setTimeout(()=>setSaveStatus(""),2000); };
+  const setDiary = fn => setDiaryRaw(p=>{const n=typeof fn==="function"?fn(p):fn; saveData(STORAGE_KEYS.diary,n).then(showSaved); return n;});
+  const setBiz = fn => setBizRaw(p=>{const n=typeof fn==="function"?fn(p):fn; saveData(STORAGE_KEYS.biz,n).then(showSaved); return n;});
+  const setRecipes = fn => setRecipesRaw(p=>{const n=typeof fn==="function"?fn(p):fn; saveData(STORAGE_KEYS.recipes,n).then(showSaved); return n;});
 
   const day = DAYS[selected];
   const entry = diary[day];
   const todayEntry = diary[DAYS[todayIdx]];
   const todayBiz = biz[DAYS[todayIdx]];
 
-  const updateNote = v => setDiary(p=>({...p,[day]:{...p[day],note:v}}));
-  const updateMood = v => setDiary(p=>({...p,[day]:{...p[day],mood:entry.mood===v?"":v}}));
-  const addTask = () => { if(!taskInput.trim()) return; setDiary(p=>({...p,[day]:{...p[day],tasks:[...p[day].tasks,{text:taskInput.trim(),done:false}]}})); setTaskInput(""); };
-  const toggleTask = (d,i) => { const tasks=diary[d].tasks.map((t,idx)=>idx===i?{...t,done:!t.done}:t); setDiary(p=>({...p,[d]:{...p[d],tasks}})); };
-  const deleteTask = i => setDiary(p=>({...p,[day]:{...p[day],tasks:entry.tasks.filter((_,idx)=>idx!==i)}}));
-  const updateBiz = (d,k,v) => setBiz(p=>({...p,[d]:{...p[d],[k]:v}}));
-
   const weekRevenue = DAYS.reduce((s,d)=>s+num(biz[d].revenue),0);
   const weekSales = DAYS.reduce((s,d)=>s+num(biz[d].sales),0);
   const weekCogs = DAYS.reduce((s,d)=>s+num(biz[d].cogs),0);
-  const weekProfit = weekRevenue - weekCogs;
+  const weekProfit = weekRevenue-weekCogs;
   const weekMargin = weekRevenue>0?(weekProfit/weekRevenue*100).toFixed(1):0;
   const upcomingTasks = DAYS.slice(todayIdx+1).map(d=>({d,tasks:diary[d].tasks.filter(t=>!t.done)})).filter(x=>x.tasks.length>0);
 
-  const handleBizCSV = e => {
-    const file=e.target.files[0]; if(!file) return; setCsvError("");
-    const reader=new FileReader();
-    reader.onload = ev => {
-      try {
-        const lines=ev.target.result.trim().split("\n").map(l=>l.split(",").map(c=>c.trim().replace(/"/g,"")));
-        const headers=lines[0].map(h=>h.toLowerCase());
-        const dayCol=headers.findIndex(h=>h.includes("day"));
-        const revCol=headers.findIndex(h=>h.includes("rev")||h.includes("sales")||h.includes("income"));
-        const cogsCol=headers.findIndex(h=>h.includes("cog")||h.includes("cost"));
-        const txnCol=headers.findIndex(h=>h.includes("txn")||h.includes("transaction")||h.includes("count"));
-        if(dayCol===-1||revCol===-1){setCsvError("CSV needs at least a 'Day' and 'Revenue' column.");return;}
-        const updated={...biz};
-        lines.slice(1).forEach(row=>{const d=DAYS.find(day=>day.toLowerCase().startsWith(row[dayCol]?.toLowerCase().slice(0,3)));if(d)updated[d]={revenue:row[revCol]?.replace(/[$,]/g,"")||updated[d].revenue,cogs:cogsCol>-1?row[cogsCol]?.replace(/[$,]/g,"")||updated[d].cogs:updated[d].cogs,sales:txnCol>-1?row[txnCol]||updated[d].sales:updated[d].sales};});
-        setBiz(updated);
-      } catch { setCsvError("Couldn't parse CSV."); }
-    };
-    reader.readAsText(file); e.target.value="";
+  const updateNote = v => setDiary(p=>({...p,[day]:{...p[day],note:v}}));
+  const updateMood = v => setDiary(p=>({...p,[day]:{...p[day],mood:entry.mood===v?"":v}}));
+  const addTask = () => {if(!taskInput.trim()) return; setDiary(p=>({...p,[day]:{...p[day],tasks:[...p[day].tasks,{text:taskInput.trim(),done:false}]}})); setTaskInput("");};
+  const toggleTask = (d,i) => {const tasks=diary[d].tasks.map((t,idx)=>idx===i?{...t,done:!t.done}:t); setDiary(p=>({...p,[d]:{...p[d],tasks}}));};
+  const deleteTask = i => setDiary(p=>({...p,[day]:{...p[day],tasks:entry.tasks.filter((_,idx)=>idx!==i)}}));
+  const updateBiz = (d,k,v) => setBiz(p=>({...p,[d]:{...p[d],[k]:v}}));
+
+  const fetchSquareData = async () => {
+    setSquareLoading(true); setSquareError("");
+    try {
+      const res = await fetch("/api/square");
+      const data = await res.json();
+      if(data.error) throw new Error(data.error);
+      setSquareData(data);
+      setBiz(p=>({...p,[DAYS[todayIdx]]:{...p[DAYS[todayIdx]],revenue:data.revenue.toFixed(2),sales:data.transactions}}));
+    } catch(e) { setSquareError("Couldn't connect to Square: "+e.message); }
+    setSquareLoading(false);
   };
+
+  useEffect(()=>{if(loaded) fetchSquareData();},[loaded]);
 
   const exportData = () => {
     const data={diary,biz,recipes,exportedAt:new Date().toISOString()};
@@ -303,27 +252,20 @@ export default function App() {
   const importData = e => {
     const file=e.target.files[0]; if(!file) return;
     const reader=new FileReader();
-    reader.onload = ev => {
-      try {
-        const data=JSON.parse(ev.target.result);
-        if(data.diary) setDiary(data.diary);
-        if(data.biz) setBiz(data.biz);
-        if(data.recipes) setRecipes(data.recipes);
-      } catch { alert("Couldn't read backup file."); }
-    };
+    reader.onload=ev=>{try{const data=JSON.parse(ev.target.result);if(data.diary)setDiary(data.diary);if(data.biz)setBiz(data.biz);if(data.recipes)setRecipes(data.recipes);}catch{alert("Couldn't read backup file.");}};
     reader.readAsText(file); e.target.value="";
   };
 
   const navItems=[{id:"today",label:"Today",icon:"☀️"},{id:"business",label:"Business",icon:"📊"},{id:"food",label:"Food Cost",icon:"🍽️"},{id:"week",label:"Week",icon:"📅"},{id:"day",label:"Day",icon:"📝"}];
 
-  const StatCard = ({label,value,color}) => (
+  const StatCard=({label,value,color})=>(
     <div style={{background:WHITE,borderRadius:10,padding:"14px 16px",flex:1,minWidth:90}}>
       <div style={{fontSize:11,color:MUTED,letterSpacing:1,marginBottom:6}}>{label}</div>
       <div style={{fontSize:18,fontWeight:"bold",color:color||OLIVE}}>{value}</div>
     </div>
   );
 
-  const BizInput = ({label,field,d}) => (
+  const BizInput=({label,field,d})=>(
     <div style={{flex:1}}>
       <div style={{fontSize:11,color:MUTED,marginBottom:4}}>{label}</div>
       <div style={{position:"relative"}}>
@@ -357,7 +299,6 @@ export default function App() {
 
       <div style={{flex:1,overflowY:"auto",padding:"20px 18px"}}>
 
-        {/* TODAY */}
         {view==="today"&&(
           <div style={{maxWidth:520,margin:"0 auto"}}>
             <h2 style={{color:OLIVE,fontWeight:"normal",fontSize:20,marginBottom:4}}>Good morning! 👋</h2>
@@ -394,16 +335,35 @@ export default function App() {
                 <button onClick={()=>importRef.current.click()} style={{flex:1,background:OLIVE_LIGHT,color:OLIVE,border:`1px solid ${OLIVE_MID}`,borderRadius:7,padding:"8px 12px",cursor:"pointer",fontSize:12,fontFamily:"Georgia, serif"}}>⬆ Restore Backup</button>
                 <input ref={importRef} type="file" accept=".json" onChange={importData} style={{display:"none"}} />
               </div>
-              <div style={{fontSize:11,color:MUTED,marginTop:8}}>Your data saves automatically. Use Export to back it up or transfer to another device.</div>
+              <div style={{fontSize:11,color:MUTED,marginTop:8}}>Your data saves automatically. Use Export to back up or transfer to another device.</div>
             </div>
           </div>
         )}
 
-        {/* BUSINESS */}
         {view==="business"&&(
           <div style={{maxWidth:560,margin:"0 auto"}}>
             <h2 style={{color:OLIVE,fontWeight:"normal",fontSize:20,marginBottom:4}}>Business Dashboard</h2>
             <p style={{color:MUTED,fontSize:13,marginTop:0,marginBottom:18}}>Track daily revenue, sales and COGS.</p>
+            <div style={{background:WHITE,borderRadius:10,padding:16,marginBottom:18,border:`1px solid ${OLIVE_LIGHT}`}}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+                <div style={{fontSize:11,color:MUTED,letterSpacing:1}}>SQUARE — YESTERDAY'S SALES</div>
+                <button onClick={fetchSquareData} style={{background:OLIVE_LIGHT,color:OLIVE,border:`1px solid ${OLIVE_MID}`,borderRadius:7,padding:"4px 12px",cursor:"pointer",fontSize:12,fontFamily:"Georgia, serif"}}>{squareLoading?"Loading…":"↻ Refresh"}</button>
+              </div>
+              {squareError&&<div style={{color:RED,fontSize:12,marginBottom:8}}>{squareError}</div>}
+              {squareData?(
+                <div>
+                  <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:10}}>
+                    <StatCard label="REVENUE" value={fmtMoney(squareData.revenue)} color={GREEN} />
+                    <StatCard label="TRANSACTIONS" value={squareData.transactions} />
+                    <StatCard label="AVG SALE" value={fmtMoney(squareData.avgSale)} />
+                  </div>
+                  {squareData.paymentTypes&&Object.keys(squareData.paymentTypes).length>0&&(
+                    <div style={{fontSize:12,color:MUTED}}>Payment types: {Object.entries(squareData.paymentTypes).map(([k,v])=>`${k}: ${fmtMoney(v)}`).join(" · ")}</div>
+                  )}
+                  <div style={{fontSize:11,color:OLIVE_MID,marginTop:8}}>✓ Auto-filled into today's daily entry</div>
+                </div>
+              ):(!squareLoading&&<div style={{color:MUTED,fontSize:13}}>No Square data yet — click Refresh to load.</div>)}
+            </div>
             <div style={{display:"flex",gap:10,marginBottom:18,flexWrap:"wrap"}}>
               <StatCard label="WEEK REVENUE" value={fmtMoney(weekRevenue)} />
               <StatCard label="WEEK COGS" value={fmtMoney(weekCogs)} />
@@ -442,7 +402,6 @@ export default function App() {
           </div>
         )}
 
-        {/* FOOD COST */}
         {view==="food"&&(
           <div style={{maxWidth:900,margin:"0 auto"}}>
             <h2 style={{color:OLIVE,fontWeight:"normal",fontSize:20,marginBottom:4}}>Food Cost Calculator</h2>
@@ -548,7 +507,6 @@ export default function App() {
                     </table>
                   </div>
                   <button onClick={addIng} style={{marginTop:12,background:OLIVE_LIGHT,color:OLIVE,border:`1px solid ${OLIVE_MID}`,borderRadius:7,padding:"7px 16px",cursor:"pointer",fontSize:12,fontFamily:"Georgia, serif"}}>+ Add Ingredient</button>
-
                   {showIngPicker&&showIngPicker.ri===ri&&(
                     <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.4)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center"}}>
                       <div style={{background:WHITE,borderRadius:14,padding:24,width:"90%",maxWidth:480,maxHeight:"80vh",display:"flex",flexDirection:"column"}}>
@@ -581,7 +539,6 @@ export default function App() {
           </div>
         )}
 
-        {/* WEEK */}
         {view==="week"&&(
           <div style={{maxWidth:560,margin:"0 auto"}}>
             <h2 style={{color:OLIVE,fontWeight:"normal",fontSize:20,marginBottom:16}}>This Week</h2>
@@ -591,7 +548,6 @@ export default function App() {
           </div>
         )}
 
-        {/* DAY */}
         {view==="day"&&(
           <div style={{maxWidth:520,margin:"0 auto"}}>
             <div style={{display:"flex",gap:6,marginBottom:20,overflowX:"auto",paddingBottom:4}}>
@@ -624,4 +580,24 @@ export default function App() {
       </div>
     </div>
   );
+
+  function handleBizCSV(e) {
+    const file=e.target.files[0]; if(!file) return; setCsvError("");
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      try {
+        const lines=ev.target.result.trim().split("\n").map(l=>l.split(",").map(c=>c.trim().replace(/"/g,"")));
+        const headers=lines[0].map(h=>h.toLowerCase());
+        const dayCol=headers.findIndex(h=>h.includes("day"));
+        const revCol=headers.findIndex(h=>h.includes("rev")||h.includes("sales")||h.includes("income"));
+        const cogsCol=headers.findIndex(h=>h.includes("cog")||h.includes("cost"));
+        const txnCol=headers.findIndex(h=>h.includes("txn")||h.includes("transaction")||h.includes("count"));
+        if(dayCol===-1||revCol===-1){setCsvError("CSV needs at least a 'Day' and 'Revenue' column.");return;}
+        const updated={...biz};
+        lines.slice(1).forEach(row=>{const d=DAYS.find(day=>day.toLowerCase().startsWith(row[dayCol]?.toLowerCase().slice(0,3)));if(d)updated[d]={revenue:row[revCol]?.replace(/[$,]/g,"")||updated[d].revenue,cogs:cogsCol>-1?row[cogsCol]?.replace(/[$,]/g,"")||updated[d].cogs:updated[d].cogs,sales:txnCol>-1?row[txnCol]||updated[d].sales:updated[d].sales};});
+        setBiz(updated);
+      } catch { setCsvError("Couldn't parse CSV."); }
+    };
+    reader.readAsText(file); e.target.value="";
+  }
 }
