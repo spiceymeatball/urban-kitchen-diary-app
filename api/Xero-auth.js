@@ -2,9 +2,25 @@ export default function handler(req, res) {
   const clientId = process.env.XERO_CLIENT_ID;
   const redirectUri = process.env.XERO_REDIRECT_URI;
   
-  const scope = 'openid profile email accounting.reports.read accounting.transactions.read offline_access';
+  if (!clientId) {
+    return res.status(500).json({ error: "Missing XERO_CLIENT_ID" });
+  }
+  if (!redirectUri) {
+    return res.status(500).json({ error: "Missing XERO_REDIRECT_URI" });
+  }
   
-  const authUrl = "https://login.xero.com/identity/connect/authorize?response_type=code&client_id=" + clientId + "&redirect_uri=" + encodeURIComponent(redirectUri) + "&scope=" + encodeURIComponent(scope) + "&state=urban-kitchen";
+  const scope = "openid profile email accounting.reports.read accounting.transactions.read offline_access";
   
-  res.redirect(authUrl);
+  const params = new URLSearchParams({
+    response_type: "code",
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    scope: scope,
+    state: "urban-kitchen"
+  });
+
+  const authUrl = "https://login.xero.com/identity/connect/authorize?" + params.toString();
+  
+  res.setHeader("Location", authUrl);
+  res.status(302).end();
 }
