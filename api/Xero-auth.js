@@ -4,7 +4,7 @@ export default function handler(req, res) {
   
   const scope = 'openid profile email accounting.reports.read accounting.transactions.read offline_access';
   
-  const authUrl = `https://login.xero.com/identity/connect/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&state=urban-kitchen`;
+  const authUrl = "https://login.xero.com/identity/connect/authorize?response_type=code&client_id=" + clientId + "&redirect_uri=" + encodeURIComponent(redirectUri) + "&scope=" + encodeURIComponent(scope) + "&state=urban-kitchen";
   
   res.redirect(authUrl);
 }
