@@ -6,7 +6,7 @@ export default function handler(req, res) {
     response_type: "code",
     client_id: clientId,
     redirect_uri: redirectUri,
-    scope: "openid profile email offline_access accounting.transactions.read accounting.settings.read",
+    scope: "openid profile email offline_access accounting.transactions accounting.contacts accounting.settings",
     state: "urban-kitchen"
   });
 
