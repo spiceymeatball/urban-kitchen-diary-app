@@ -1,16 +1,17 @@
+import { writeFileSync, readFileSync, existsSync } from 'fs';
+import { join } from 'path';
+
 export default async function handler(req, res) {
   const { code, error } = req.query;
 
-  // If Xero returned an error
   if (error) {
-    res.setHeader("Location", "https://urban-kitchen-diary-app.vercel.app/#xero_error=" + encodeURIComponent(error));
+    res.setHeader("Location", "https://urban-kitchen-diary-app.vercel.app?xero_error=" + encodeURIComponent(error));
     res.status(302).end();
     return;
   }
 
-  // If no code returned
   if (!code) {
-    res.setHeader("Location", "https://urban-kitchen-diary-app.vercel.app/#xero_error=no_code_returned");
+    res.setHeader("Location", "https://urban-kitchen-diary-app.vercel.app?xero_error=no_code");
     res.status(302).end();
     return;
   }
@@ -18,12 +19,6 @@ export default async function handler(req, res) {
   const clientId = process.env.XERO_CLIENT_ID;
   const clientSecret = process.env.XERO_CLIENT_SECRET;
   const redirectUri = process.env.XERO_REDIRECT_URI;
-
-  if (!clientId || !clientSecret) {
-    res.setHeader("Location", "https://urban-kitchen-diary-app.vercel.app/#xero_error=missing_credentials");
-    res.status(302).end();
-    return;
-  }
 
   try {
     const credentials = Buffer.from(clientId + ":" + clientSecret).toString("base64");
@@ -38,12 +33,7 @@ export default async function handler(req, res) {
     });
 
     const tokens = await tokenRes.json();
-    
-    if (tokens.error) {
-      res.setHeader("Location", "https://urban-kitchen-diary-app.vercel.app/#xero_error=" + encodeURIComponent(tokens.error + ": " + (tokens.error_description || "")));
-      res.status(302).end();
-      return;
-    }
+    if (tokens.error) throw new Error(tokens.error + ": " + (tokens.error_description || ""));
 
     const tenantsRes = await fetch("https://api.xero.com/connections", {
       headers: { 
@@ -54,22 +44,15 @@ export default async function handler(req, res) {
     
     const tenants = await tenantsRes.json();
     const tenantId = tenants[0] && tenants[0].tenantId ? tenants[0].tenantId : "";
-    
-    if (!tenantId) {
-      res.setHeader("Location", "https://urban-kitchen-diary-app.vercel.app/?xero_error=no_tenant_found");
-      res.status(302).end();
-      return;
-    }
+    if (!tenantId) throw new Error("No Xero organisation found");
 
-    const redirectUrl = "https://urban-kitchen-diary-app.vercel.app/#xero_token=" + 
-      encodeURIComponent(tokens.access_token) + 
-      "&xero_tenant=" + encodeURIComponent(tenantId);
-
-    res.setHeader("Location", redirectUrl);
+    // Store token in environment-style response
+    res.setHeader("Location", "https://urban-kitchen-diary-app.vercel.app?xt=" + 
+      encodeURIComponent(tokens.access_token) + "&xi=" + encodeURIComponent(tenantId));
     res.status(302).end();
 
   } catch (err) {
-    res.setHeader("Location", "https://urban-kitchen-diary-app.vercel.app/#xero_error=" + encodeURIComponent(err.message));
+    res.setHeader("Location", "https://urban-kitchen-diary-app.vercel.app?xero_error=" + encodeURIComponent(err.message));
     res.status(302).end();
   }
 }
