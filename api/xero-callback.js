@@ -56,7 +56,7 @@ export default async function handler(req, res) {
     const tenantId = tenants[0] && tenants[0].tenantId ? tenants[0].tenantId : "";
     
     if (!tenantId) {
-      res.setHeader("Location", "https://urban-kitchen-diary-app.vercel.app/#xero_error=no_tenant_found");
+      res.setHeader("Location", "https://urban-kitchen-diary-app.vercel.app/?xero_error=no_tenant_found");
       res.status(302).end();
       return;
     }
