@@ -232,40 +232,19 @@ export default function App() {
     if(!loaded) return;
     fetchSquareData();
     
-    // Read xero token from URL immediately on load
     const url = new URL(window.location.href);
-    const token = url.searchParams.get("xero_token");
-    const tenant = url.searchParams.get("xero_tenant");
+    const token = url.searchParams.get("xt");
+    const tenant = url.searchParams.get("xi");
     const err = url.searchParams.get("xero_error");
     
     if(token && tenant) {
       setXeroToken(token); 
       setXeroTenant(tenant);
-      // Clean URL
-      window.history.replaceState({}, document.title, window.location.pathname);
+      window.history.replaceState({}, document.title, "/");
       fetchXeroData(token, tenant);
     } else if(err) {
-      setXeroError(decodeURIComponent(err));
-      window.history.replaceState({}, document.title, window.location.pathname);
-    } else {
-      // Also check hash
-      const hash = window.location.hash;
-      if(hash && hash.length > 1) {
-        const hashParams = new URLSearchParams(hash.substring(1));
-        const hashToken = hashParams.get("xero_token");
-        const hashTenant = hashParams.get("xero_tenant");
-        const hashErr = hashParams.get("xero_error");
-        if(hashToken && hashTenant) {
-          setXeroToken(hashToken); 
-          setXeroTenant(hashTenant);
-          window.history.replaceState({}, document.title, window.location.pathname);
-          fetchXeroData(hashToken, hashTenant);
-        }
-        if(hashErr) {
-          setXeroError(decodeURIComponent(hashErr));
-          window.history.replaceState({}, document.title, window.location.pathname);
-        }
-      }
+      setXeroError("Xero error: " + decodeURIComponent(err));
+      window.history.replaceState({}, document.title, "/");
     }
   },[loaded]);
 
