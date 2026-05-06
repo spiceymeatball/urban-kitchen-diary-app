@@ -1,6 +1,3 @@
-import { writeFileSync, readFileSync, existsSync } from 'fs';
-import { join } from 'path';
-
 export default async function handler(req, res) {
   const { code, error } = req.query;
 
@@ -46,7 +43,6 @@ export default async function handler(req, res) {
     const tenantId = tenants[0] && tenants[0].tenantId ? tenants[0].tenantId : "";
     if (!tenantId) throw new Error("No Xero organisation found");
 
-    // Store token in environment-style response
     res.setHeader("Location", "https://urban-kitchen-diary-app.vercel.app?xt=" + 
       encodeURIComponent(tokens.access_token) + "&xi=" + encodeURIComponent(tenantId));
     res.status(302).end();
