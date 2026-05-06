@@ -398,7 +398,7 @@ export default function App() {
                 <div style={{fontSize:11,color:MUTED,letterSpacing:1}}>XERO - THIS MONTH'S P&L</div>
                 {xeroToken
                   ?<button onClick={()=>fetchXeroData(xeroToken,xeroTenant)} style={{background:OLIVE_LIGHT,color:OLIVE,border:"1px solid "+OLIVE_MID,borderRadius:7,padding:"4px 12px",cursor:"pointer",fontSize:12,fontFamily:"Georgia, serif"}}>{xeroLoading?"Loading...":"Refresh"}</button>
-                  :<button onClick={()=>window.location.href="/api/xero-auth"} style={{background:OLIVE,color:WHITE,border:"none",borderRadius:7,padding:"6px 14px",cursor:"pointer",fontSize:12,fontFamily:"Georgia, serif"}}>Connect Xero</button>
+                  :<button onClick={()=>{ window.location.href="https://urban-kitchen-diary-app.vercel.app/api/xero-auth"; }} style={{background:OLIVE,color:WHITE,border:"none",borderRadius:7,padding:"6px 14px",cursor:"pointer",fontSize:12,fontFamily:"Georgia, serif"}}>Connect Xero</button>
                 }
               </div>
               {xeroError&&<div style={{color:RED,fontSize:12,marginBottom:8}}>{xeroError}</div>}
