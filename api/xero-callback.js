@@ -1,6 +1,12 @@
 export default async function handler(req, res) {
-  const { code } = req.query;
-  
+  const { code, error } = req.query;
+
+  if (error) {
+    res.setHeader("Location", "https://urban-kitchen-diary-app.vercel.app/#xero_error=" + encodeURIComponent(error));
+    res.status(302).end();
+    return;
+  }
+
   const clientId = process.env.XERO_CLIENT_ID;
   const clientSecret = process.env.XERO_CLIENT_SECRET;
   const redirectUri = process.env.XERO_REDIRECT_URI;
@@ -14,11 +20,7 @@ export default async function handler(req, res) {
         "Content-Type": "application/x-www-form-urlencoded",
         "Authorization": "Basic " + credentials
       },
-      body: new URLSearchParams({
-        grant_type: "authorization_code",
-        code: code,
-        redirect_uri: redirectUri
-      }).toString()
+      body: "grant_type=authorization_code&code=" + encodeURIComponent(code) + "&redirect_uri=" + encodeURIComponent(redirectUri)
     });
 
     const tokens = await tokenRes.json();
@@ -33,10 +35,9 @@ export default async function handler(req, res) {
     
     const tenants = await tenantsRes.json();
     const tenantId = tenants[0] && tenants[0].tenantId ? tenants[0].tenantId : "";
-
     if (!tenantId) throw new Error("No Xero organisation found");
 
-    const redirectUrl = "https://urban-kitchen-diary-app.vercel.app/?xero_token=" + 
+    const redirectUrl = "https://urban-kitchen-diary-app.vercel.app/#xero_token=" + 
       encodeURIComponent(tokens.access_token) + 
       "&xero_tenant=" + encodeURIComponent(tenantId);
 
@@ -44,8 +45,7 @@ export default async function handler(req, res) {
     res.status(302).end();
 
   } catch (err) {
-    const errorUrl = "https://urban-kitchen-diary-app.vercel.app/?xero_error=" + encodeURIComponent(err.message);
-    res.setHeader("Location", errorUrl);
+    res.setHeader("Location", "https://urban-kitchen-diary-app.vercel.app/#xero_error=" + encodeURIComponent(err.message));
     res.status(302).end();
   }
 }
