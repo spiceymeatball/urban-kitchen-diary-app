@@ -231,23 +231,26 @@ export default function App() {
   useEffect(()=>{
     if(!loaded) return;
     fetchSquareData();
-    // Check hash for Xero tokens
-    const hash = window.location.hash;
-    if(hash && hash.length > 1) {
-      const params = new URLSearchParams(hash.substring(1));
-      const token = params.get("xero_token");
-      const tenant = params.get("xero_tenant");
-      const err = params.get("xero_error");
-      if(token && tenant) {
-        setXeroToken(token); setXeroTenant(tenant);
-        window.history.pushState({},document.title,"/");
-        fetchXeroData(token,tenant);
+    // Small delay to ensure hash is readable
+    setTimeout(() => {
+      const hash = window.location.hash;
+      if(hash && hash.length > 1) {
+        const params = new URLSearchParams(hash.substring(1));
+        const token = params.get("xero_token");
+        const tenant = params.get("xero_tenant");
+        const err = params.get("xero_error");
+        if(token && tenant) {
+          setXeroToken(token); 
+          setXeroTenant(tenant);
+          window.history.pushState({}, document.title, "/");
+          fetchXeroData(token, tenant);
+        }
+        if(err) {
+          setXeroError(decodeURIComponent(err));
+          window.history.pushState({}, document.title, "/");
+        }
       }
-      if(err) {
-        setXeroError(decodeURIComponent(err));
-        window.history.pushState({},document.title,"/");
-      }
-    }
+    }, 500);
   },[loaded]);
 
   const exportData = () => {
