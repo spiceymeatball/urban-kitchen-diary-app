@@ -143,6 +143,15 @@ const ING = [
 ];
 
 export default function App() {
+  // Read Xero token from URL immediately - before any state
+  const urlParams = new URLSearchParams(window.location.search);
+  const xeroTokenFromUrl = urlParams.get("xt");
+  const xeroTenantFromUrl = urlParams.get("xi");
+  const xeroErrorFromUrl = urlParams.get("xero_error");
+  if(xeroTokenFromUrl && xeroTenantFromUrl) {
+    window.history.replaceState({}, document.title, "/");
+  }
+
   const [diary, setDiaryRaw] = useState(initDiary());
   const [biz, setBizRaw] = useState(initBiz());
   const [recipes, setRecipesRaw] = useState([]);
@@ -231,20 +240,12 @@ export default function App() {
   useEffect(()=>{
     if(!loaded) return;
     fetchSquareData();
-    
-    const url = new URL(window.location.href);
-    const token = url.searchParams.get("xt");
-    const tenant = url.searchParams.get("xi");
-    const err = url.searchParams.get("xero_error");
-    
-    if(token && tenant) {
-      setXeroToken(token); 
-      setXeroTenant(tenant);
-      window.history.replaceState({}, document.title, "/");
-      fetchXeroData(token, tenant);
-    } else if(err) {
-      setXeroError("Xero error: " + decodeURIComponent(err));
-      window.history.replaceState({}, document.title, "/");
+    if(xeroTokenFromUrl && xeroTenantFromUrl) {
+      setXeroToken(xeroTokenFromUrl);
+      setXeroTenant(xeroTenantFromUrl);
+      fetchXeroData(xeroTokenFromUrl, xeroTenantFromUrl);
+    } else if(xeroErrorFromUrl) {
+      setXeroError("Xero error: " + decodeURIComponent(xeroErrorFromUrl));
     }
   },[loaded]);
 
@@ -398,8 +399,7 @@ export default function App() {
                 <div style={{fontSize:11,color:MUTED,letterSpacing:1}}>XERO - THIS MONTH'S P&L</div>
                 {xeroToken
                   ?<button onClick={()=>fetchXeroData(xeroToken,xeroTenant)} style={{background:OLIVE_LIGHT,color:OLIVE,border:"1px solid "+OLIVE_MID,borderRadius:7,padding:"4px 12px",cursor:"pointer",fontSize:12,fontFamily:"Georgia, serif"}}>{xeroLoading?"Loading...":"Refresh"}</button>
-                  :<button onClick={()=>{ window.location.href="https://urban-kitchen-diary-app.vercel.app/api/xero-auth"; }} style={{background:OLIVE,color:WHITE,border:"none",borderRadius:7,padding:"6px 14px",cursor:"pointer",fontSize:12,fontFamily:"Georgia, serif"}}>Connect Xero</button>
-                }
+                  :<button onClick={()=>{ window.location.href="https://urban-kitchen-diary-app.vercel.app/api/xero-auth"; }} style={{background:OLIVE,color:WHITE,border:"none",borderRadius:7,padding:"6px 14px",cursor:"pointer",fontSize:12,fontFamily:"Georgia, serif"}}>Connect Xero</button>                }
               </div>
               {xeroError&&<div style={{color:RED,fontSize:12,marginBottom:8}}>{xeroError}</div>}
               {xeroData?(
