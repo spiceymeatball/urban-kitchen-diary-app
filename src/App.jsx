@@ -220,22 +220,31 @@ export default function App() {
     setXeroLoading(false);
   };
 
-  // Read Xero token from URL - must happen before state initialization
+  // Read Xero connection status from URL
   const _url = typeof window !== 'undefined' ? new URL(window.location.href) : null;
-  const xeroTokenFromUrl = _url ? _url.searchParams.get("xt") : null;
-  const xeroTenantFromUrl = _url ? _url.searchParams.get("xi") : null;
+  const xeroConnected = _url ? _url.searchParams.get("xero") === "connected" : false;
   const xeroErrorFromUrl = _url ? _url.searchParams.get("xero_error") : null;
-  if(xeroTokenFromUrl && xeroTenantFromUrl && typeof window !== 'undefined') {
+  const xeroTokenFromUrl = null;
+  const xeroTenantFromUrl = null;
+  if(typeof window !== 'undefined' && (xeroConnected || xeroErrorFromUrl)) {
     window.history.replaceState({}, document.title, "/");
   }
 
   useEffect(()=>{
     if(!loaded) return;
     fetchSquareData();
-    if(xeroTokenFromUrl && xeroTenantFromUrl) {
-      setXeroToken(xeroTokenFromUrl);
-      setXeroTenant(xeroTenantFromUrl);
-      fetchXeroData(xeroTokenFromUrl, xeroTenantFromUrl);
+    if(xeroConnected) {
+      // Fetch token from server
+      fetch("/api/xero-token")
+        .then(r=>r.json())
+        .then(data=>{
+          if(data.token && data.tenant) {
+            setXeroToken(data.token);
+            setXeroTenant(data.tenant);
+            fetchXeroData(data.token, data.tenant);
+          }
+        })
+        .catch(e=>setXeroError("Could not retrieve Xero token"));
     } else if(xeroErrorFromUrl) {
       setXeroError("Xero error: "+decodeURIComponent(xeroErrorFromUrl));
     }
