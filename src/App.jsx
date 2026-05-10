@@ -214,6 +214,17 @@ export default function App() {
   const deleteTask = i => setDiary(p=>({...p,[day]:{...p[day],tasks:entry.tasks.filter((_,idx)=>idx!==i)}}));
   const updateBiz = (d,k,v) => setBiz(p=>({...p,[d]:{...p[d],[k]:v}}));
 
+  const fetchSquareForDate = async (dateStr) => {
+    if(squareByDate[dateStr] || loadingDates[dateStr]) return;
+    setLoadingDates(p=>({...p,[dateStr]:true}));
+    try {
+      const res = await fetch("/api/square?date=" + dateStr);
+      const data = await res.json();
+      if(!data.error) setSquareByDate(p=>({...p,[dateStr]:data}));
+    } catch(e) {}
+    setLoadingDates(p=>({...p,[dateStr]:false}));
+  };
+
   const fetchSquareData = async () => {
     setSquareLoading(true); setSquareError("");
     try {
