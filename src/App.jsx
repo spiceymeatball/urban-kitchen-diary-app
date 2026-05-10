@@ -8,16 +8,28 @@ const todayIdx = today.getDay() === 0 ? 6 : today.getDay() - 1;
 const dateStr = today.toLocaleDateString("en-AU",{weekday:"long",day:"numeric",month:"long"});
 
 const OLIVE="#6b7c4a",OLIVE_LIGHT="#e8edd8",OLIVE_MID="#9aaa70",WHITE="#ffffff",TEXT="#3a3a2e",MUTED="#8a9070",RED="#c0392b",GREEN="#4a7c59",AMBER="#c47c00";
+const SUPER_RATE = 0.12;
 
-const fmtMoney = v => { const n=parseFloat(v); if(isNaN(n)) return "—"; return "$"+(Math.ceil(n*100)/100).toLocaleString("en-AU",{minimumFractionDigits:2,maximumFractionDigits:2}); };
+const fmtMoney = v => { const n=parseFloat(v); if(isNaN(n)||n===0) return "—"; return "$"+(Math.ceil(n*100)/100).toLocaleString("en-AU",{minimumFractionDigits:2,maximumFractionDigits:2}); };
+const fmtMoneyZero = v => { const n=parseFloat(v); if(isNaN(n)) return "—"; return "$"+(Math.ceil(n*100)/100).toLocaleString("en-AU",{minimumFractionDigits:2,maximumFractionDigits:2}); };
 const num = v => parseFloat(v)||0;
 const cogsColor = v => { const n=parseFloat(v)*(parseFloat(v)<=1?100:1); if(isNaN(n)) return MUTED; if(n<=30) return GREEN; if(n<=35) return AMBER; return RED; };
 const gpColor = v => { const n=parseFloat(v)*(parseFloat(v)<=1?100:1); if(isNaN(n)) return MUTED; if(n>=70) return GREEN; if(n>=65) return AMBER; return RED; };
 
 const initDiary = () => DAYS.reduce((a,d)=>({...a,[d]:{note:"",mood:"",tasks:[]}}),{});
 const initBiz = () => DAYS.reduce((a,d)=>({...a,[d]:{revenue:"",sales:"",cogs:""}}),{});
+const initWages = () => ({
+  employees:[
+    {id:"1",name:"Paul",rate:43.10},{id:"2",name:"Karen",rate:39.50},
+    {id:"3",name:"Laurane",rate:35.15},{id:"4",name:"Jess",rate:32.98},
+    {id:"5",name:"Giacomo",rate:35.15},{id:"6",name:"Conor",rate:35.15},
+    {id:"7",name:"Vera",rate:35.15},{id:"8",name:"Aleisha",rate:35.15},
+    {id:"9",name:"Ryan",rate:30.00},{id:"10",name:"Heidi",rate:35.15},
+  ],
+  timesheets: DAYS.reduce((a,d)=>({...a,[d]:{}}),{})
+});
 
-const SK = {diary:"uk_diary",biz:"uk_biz",recipes:"uk_recipes"};
+const SK = {diary:"uk_diary",biz:"uk_biz",recipes:"uk_recipes",wages:"uk_wages"};
 const saveData = async (k,v) => { try { await window.storage.set(k,JSON.stringify(v)); } catch(e){} };
 const loadData = async (k,fb) => { try { const r=await window.storage.get(k); return r?JSON.parse(r.value):fb; } catch { return fb; } };
 
@@ -70,91 +82,46 @@ const ING = [
   {name:"Ground Cinnamon",measure:"kg",contentsQty:600,contentsUnit:"per gram",unitCost:12.90/600},
   {name:"Mediterranean Panini",measure:"each",contentsQty:1,contentsUnit:"each",unitCost:1.78},
   {name:"Sliced Bread",measure:"slice",contentsQty:1,contentsUnit:"slice",unitCost:0.65},
-  {name:"Steakhouse Panini",measure:"each",contentsQty:1,contentsUnit:"each",unitCost:1.47},
   {name:"Cream",measure:"lt",contentsQty:1000,contentsUnit:"per ml",unitCost:7.49/1000},
   {name:"Tortilla Plain",measure:"each",contentsQty:1,contentsUnit:"each",unitCost:0.52},
   {name:"Avocado",measure:"each",contentsQty:1,contentsUnit:"each",unitCost:3.50},
-  {name:"Kiwi",measure:"each",contentsQty:1,contentsUnit:"each",unitCost:1.20},
   {name:"Strawberries",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:22.00/1000},
-  {name:"Cauliflower",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:10.00/1000},
-  {name:"Zucchini",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:4.00/1000},
-  {name:"Broccoli",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:5.00/1000},
-  {name:"Rocket",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:10.00/1000},
-  {name:"Tomatoes",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:3.80/1000},
-  {name:"Coffee Beans",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:26.00/1000},
   {name:"Mushrooms",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:15.00/1000},
-  {name:"Decaf Beans",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:42.00/1000},
   {name:"Chicken Thigh",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:14.00/1000},
   {name:"Chicken Breast",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:14.00/1000},
-  {name:"Black Angus Rump",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:16.50/1000},
-  {name:"Brisket",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:18.00/1000},
-  {name:"Scotch Fillet",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:48.00/1000},
+  {name:"Bacon",measure:"kg",contentsQty:1000,contentsUnit:"Per Gram",unitCost:12.36/1000},
   {name:"Chorizo",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:26.30/1000},
-  {name:"Sliced Ham",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:16.00/1000},
-  {name:"Sliced Pastrami",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:26.50/1000},
-  {name:"Hash Browns",measure:"each",contentsQty:1,contentsUnit:"each",unitCost:0.23},
   {name:"Burger Mince",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:13.50/1000},
-  {name:"Piadina",measure:"each",contentsQty:1,contentsUnit:"each",unitCost:1.75},
   {name:"Plain Bagels",measure:"each",contentsQty:1,contentsUnit:"each",unitCost:1.50},
-  {name:"Everything Bagels",measure:"each",contentsQty:1,contentsUnit:"each",unitCost:1.70},
   {name:"GF Flour",measure:"kg",contentsQty:12500,contentsUnit:"per gram",unitCost:88.24/12500},
   {name:"Cocoa Powder",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:35.00/1000},
-  {name:"Macadamia Milk",measure:"lt",contentsQty:1000,contentsUnit:"per ml",unitCost:4.00/1000},
   {name:"Golden Syrup",measure:"kg",contentsQty:3000,contentsUnit:"per gram",unitCost:35.50/3000},
-  {name:"Salted Butter",measure:"kg",contentsQty:500,contentsUnit:"per gram",unitCost:8.20/500},
   {name:"Danish Feta",measure:"kg",contentsQty:16000,contentsUnit:"per gram",unitCost:105.35/16000},
-  {name:"Mozzarella",measure:"kg",contentsQty:10000,contentsUnit:"per gram",unitCost:109.00/10000},
   {name:"Haloumi",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:22.69/1000},
-  {name:"Vanilla Ice Cream",measure:"kg",contentsQty:10000,contentsUnit:"per gram",unitCost:25.22/10000},
-  {name:"Falafel Bites",measure:"each",contentsQty:1,contentsUnit:"each",unitCost:0.72},
   {name:"Hummus",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:13.36/1000},
   {name:"Cream Cheese",measure:"kg",contentsQty:2000,contentsUnit:"per gram",unitCost:25.38/2000},
   {name:"Lemons",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:7.50/1000},
   {name:"Onions",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:2.00/1000},
-  {name:"Pickles",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:4.50/1000},
-  {name:"Herb Garlic Mayo",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:12.80/1000},
   {name:"Pulled Beef",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:22.50/1000},
-  {name:"Chimichurri",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:16.00/1000},
-  {name:"Pickled Onions",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:8.00/1000},
-  {name:"Baby Cos",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:11.20/1000},
-  {name:"Roast Pumpkin",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:5.00/1000},
-  {name:"Pistachio Paste",measure:"kg",contentsQty:5000,contentsUnit:"per gram",unitCost:88.00/5000},
-  {name:"Chocolate Callebaut",measure:"kg",contentsQty:5000,contentsUnit:"per gram",unitCost:105.00/5000},
-  {name:"Ham Hock",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:25.00/1000},
-  {name:"Bacon Chorizo Jam",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:35.00/1000},
-  {name:"Caramelised Onion Jam",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:20.00/1000},
-  {name:"Bechamel",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:9.00/1000},
-  {name:"Chocolate Sauce",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:8.91/1000},
-  {name:"Carrots",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:1.80/1000},
-  {name:"Oil",measure:"lt",contentsQty:1000,contentsUnit:"per gram",unitCost:2.90/1000},
-  {name:"House Made Bacon",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:19.50/1000},
-  {name:"Potatoes",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:3.50/1000},
-  {name:"Red Onions",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:4.95/1000},
   {name:"Garlic",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:17.90/1000},
   {name:"Olive Oil",measure:"lt",contentsQty:4000,contentsUnit:"per ml",unitCost:50.00/4000},
   {name:"Maple Syrup",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:39.80/1000},
   {name:"Honey",measure:"kg",contentsQty:3000,contentsUnit:"per gram",unitCost:35.00/3000},
-  {name:"Granola",measure:"kg",contentsQty:4745,contentsUnit:"per gram",unitCost:36.06/4745},
-  {name:"Smoked Brisket",measure:"kg",contentsQty:1000,contentsUnit:"per kg",unitCost:35.00/1000},
-  {name:"Coke",measure:"each",contentsQty:24,contentsUnit:"each",unitCost:24.95/24},
-  {name:"Water",measure:"each",contentsQty:24,contentsUnit:"each",unitCost:11.80/24},
-  {name:"Shaved Bacon",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:17.95/1000},
   {name:"Sourdough Burger Buns",measure:"each",contentsQty:1,contentsUnit:"each",unitCost:1.40},
+  {name:"Brioche Buns",measure:"each",contentsQty:1,contentsUnit:"each",unitCost:1.20},
+  {name:"Pretzel Bun",measure:"each",contentsQty:1,contentsUnit:"each",unitCost:1.33},
+  {name:"Potatoes",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:3.50/1000},
+  {name:"Carrots",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:1.80/1000},
+  {name:"Tomatoes",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:3.80/1000},
+  {name:"Coffee Beans",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:26.00/1000},
+  {name:"Decaf Beans",measure:"kg",contentsQty:1000,contentsUnit:"per gram",unitCost:42.00/1000},
 ];
 
 export default function App() {
-  // Read Xero token from URL immediately - before any state
-  const urlParams = new URLSearchParams(window.location.search);
-  const xeroTokenFromUrl = urlParams.get("xt");
-  const xeroTenantFromUrl = urlParams.get("xi");
-  const xeroErrorFromUrl = urlParams.get("xero_error");
-  if(xeroTokenFromUrl && xeroTenantFromUrl) {
-    window.history.replaceState({}, document.title, "/");
-  }
-
   const [diary, setDiaryRaw] = useState(initDiary());
   const [biz, setBizRaw] = useState(initBiz());
   const [recipes, setRecipesRaw] = useState([]);
+  const [wages, setWagesRaw] = useState(initWages());
   const [loaded, setLoaded] = useState(false);
   const [selected, setSelected] = useState(todayIdx);
   const [view, setView] = useState("today");
@@ -174,33 +141,20 @@ export default function App() {
   const [xeroTenant, setXeroTenant] = useState(null);
   const [xeroLoading, setXeroLoading] = useState(false);
   const [xeroError, setXeroError] = useState("");
-  const [calView, setCalView] = useState("month"); // month | week
+  const [calView, setCalView] = useState("month");
   const [calMonth, setCalMonth] = useState(new Date());
   const [calWeek, setCalWeek] = useState(new Date());
-  const [wages, setWagesRaw] = useState({
-    employees: [
-      {id:"1",name:"Paul",rate:43.10},
-      {id:"2",name:"Karen",rate:39.50},
-      {id:"3",name:"Laurane",rate:35.15},
-      {id:"4",name:"Jess",rate:32.98},
-      {id:"5",name:"Giacomo",rate:35.15},
-      {id:"6",name:"Conor",rate:35.15},
-      {id:"7",name:"Vera",rate:35.15},
-      {id:"8",name:"Aleisha",rate:35.15},
-      {id:"9",name:"Ryan",rate:30.00},
-      {id:"10",name:"Heidi",rate:35.15},
-    ],
-    timesheets: DAYS.reduce((a,d)=>({...a,[d]:{}}),{})
-  });
-
-  const setWages = fn => setWagesRaw(p=>{const n=typeof fn==="function"?fn(p):fn; saveData("uk_wages",n).then(showSaved); return n;});
+  const [newEmpName, setNewEmpName] = useState("");
+  const [newEmpRate, setNewEmpRate] = useState("");
+  const bizFileRef = useRef();
+  const importRef = useRef();
 
   useEffect(() => {
     (async () => {
       const d = await loadData(SK.diary, initDiary());
       const b = await loadData(SK.biz, initBiz());
       const r = await loadData(SK.recipes, []);
-      const w = await loadData("uk_wages", {employees:[],timesheets:DAYS.reduce((a,d)=>({...a,[d]:{}}),{})});
+      const w = await loadData(SK.wages, initWages());
       setDiaryRaw(d); setBizRaw(b); setRecipesRaw(r); setWagesRaw(w);
       setLoaded(true);
     })();
@@ -210,6 +164,7 @@ export default function App() {
   const setDiary = fn => setDiaryRaw(p=>{const n=typeof fn==="function"?fn(p):fn; saveData(SK.diary,n).then(showSaved); return n;});
   const setBiz = fn => setBizRaw(p=>{const n=typeof fn==="function"?fn(p):fn; saveData(SK.biz,n).then(showSaved); return n;});
   const setRecipes = fn => setRecipesRaw(p=>{const n=typeof fn==="function"?fn(p):fn; saveData(SK.recipes,n).then(showSaved); return n;});
+  const setWages = fn => setWagesRaw(p=>{const n=typeof fn==="function"?fn(p):fn; saveData(SK.wages,n).then(showSaved); return n;});
 
   const day = DAYS[selected];
   const entry = diary[day];
@@ -231,13 +186,13 @@ export default function App() {
   const updateBiz = (d,k,v) => setBiz(p=>({...p,[d]:{...p[d],[k]:v}}));
 
   const fetchSquareForDate = async (dateStr) => {
-    if(squareByDate[dateStr] || loadingDates[dateStr]) return;
+    if(squareByDate[dateStr]||loadingDates[dateStr]) return;
     setLoadingDates(p=>({...p,[dateStr]:true}));
     try {
-      const res = await fetch("/api/square?date=" + dateStr);
+      const res = await fetch("/api/square?date="+dateStr);
       const data = await res.json();
       if(!data.error) setSquareByDate(p=>({...p,[dateStr]:data}));
-    } catch(e) {}
+    } catch(e){}
     setLoadingDates(p=>({...p,[dateStr]:false}));
   };
 
@@ -248,7 +203,6 @@ export default function App() {
       const data = await res.json();
       if(data.error) throw new Error(data.error);
       setSquareData(data);
-      // Auto fill today with net sales
       setBiz(p=>({...p,[DAYS[todayIdx]]:{...p[DAYS[todayIdx]],revenue:(data.netSales||data.grossSales||0).toFixed(2),sales:data.transactions}}));
     } catch(e) { setSquareError("Could not connect to Square: "+e.message); }
     setSquareLoading(false);
@@ -262,13 +216,16 @@ export default function App() {
       const data = await res.json();
       if(data.error) throw new Error(data.error);
       setXeroData(data);
-      if(data.cogs > 0) {
-        const dailyCogs = (data.cogs / new Date().getDate()).toFixed(2);
-        setBiz(p=>({...p,[DAYS[todayIdx]]:{...p[DAYS[todayIdx]],cogs:dailyCogs}}));
-      }
     } catch(e) { setXeroError("Xero error: "+e.message); }
     setXeroLoading(false);
   };
+
+  // Read Xero token from URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const xeroTokenFromUrl = urlParams.get("xt");
+  const xeroTenantFromUrl = urlParams.get("xi");
+  const xeroErrorFromUrl = urlParams.get("xero_error");
+  if(xeroTokenFromUrl && xeroTenantFromUrl) window.history.replaceState({},document.title,"/");
 
   useEffect(()=>{
     if(!loaded) return;
@@ -278,12 +235,12 @@ export default function App() {
       setXeroTenant(xeroTenantFromUrl);
       fetchXeroData(xeroTokenFromUrl, xeroTenantFromUrl);
     } else if(xeroErrorFromUrl) {
-      setXeroError("Xero error: " + decodeURIComponent(xeroErrorFromUrl));
+      setXeroError("Xero error: "+decodeURIComponent(xeroErrorFromUrl));
     }
   },[loaded]);
 
   const exportData = () => {
-    const data={diary,biz,recipes,exportedAt:new Date().toISOString()};
+    const data={diary,biz,recipes,wages,exportedAt:new Date().toISOString()};
     const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
     const url=URL.createObjectURL(blob);
     const a=document.createElement("a"); a.href=url; a.download="urban-kitchen-diary.json"; a.click();
@@ -293,7 +250,7 @@ export default function App() {
   const importData = e => {
     const file=e.target.files[0]; if(!file) return;
     const reader=new FileReader();
-    reader.onload=ev=>{try{const data=JSON.parse(ev.target.result);if(data.diary)setDiary(data.diary);if(data.biz)setBiz(data.biz);if(data.recipes)setRecipes(data.recipes);}catch{alert("Could not read backup file.");}};
+    reader.onload=ev=>{try{const data=JSON.parse(ev.target.result);if(data.diary)setDiary(data.diary);if(data.biz)setBiz(data.biz);if(data.recipes)setRecipes(data.recipes);if(data.wages)setWages(data.wages);}catch{alert("Could not read backup file.");}};
     reader.readAsText(file); e.target.value="";
   };
 
@@ -304,18 +261,42 @@ export default function App() {
       try {
         const lines=ev.target.result.trim().split("\n").map(l=>l.split(",").map(c=>c.trim().replace(/"/g,"")));
         const headers=lines[0].map(h=>h.toLowerCase());
-        const dc=headers.findIndex(h=>h.includes("day"));
-        const rc=headers.findIndex(h=>h.includes("rev")||h.includes("sales")||h.includes("income"));
-        const cc=headers.findIndex(h=>h.includes("cog")||h.includes("cost"));
-        const tc=headers.findIndex(h=>h.includes("txn")||h.includes("transaction")||h.includes("count"));
-        if(dc===-1||rc===-1){setCsvError("CSV needs at least a Day and Revenue column.");return;}
+        const dc=headers.findIndex(h=>h.includes("day")); const rc=headers.findIndex(h=>h.includes("rev")||h.includes("sales"));
+        if(dc===-1||rc===-1){setCsvError("CSV needs Day and Revenue columns.");return;}
         const updated={...biz};
-        lines.slice(1).forEach(row=>{const d=DAYS.find(day=>day.toLowerCase().startsWith((row[dc]||"").toLowerCase().slice(0,3)));if(d)updated[d]={revenue:(row[rc]||"").replace(/[$,]/g,"")||updated[d].revenue,cogs:cc>-1?(row[cc]||"").replace(/[$,]/g,"")||updated[d].cogs:updated[d].cogs,sales:tc>-1?row[tc]||updated[d].sales:updated[d].sales};});
+        lines.slice(1).forEach(row=>{const d=DAYS.find(day=>day.toLowerCase().startsWith((row[dc]||"").toLowerCase().slice(0,3)));if(d)updated[d]={...updated[d],revenue:(row[rc]||"").replace(/[$,]/g,"")||updated[d].revenue};});
         setBiz(updated);
       } catch { setCsvError("Could not parse CSV."); }
     };
     reader.readAsText(file); e.target.value="";
   };
+
+  // Wage helpers
+  const getHours = (d, empId) => {
+    const shift = wages.timesheets[d]?.[empId] || {};
+    if(["O","S","D"].includes(shift.code||"")) return 0;
+    return num(shift.hours||0);
+  };
+  const updateShift = (d, empId, field, val) => setWages(p=>({...p,timesheets:{...p.timesheets,[d]:{...p.timesheets[d],[empId]:{...(p.timesheets[d]?.[empId]||{}),[field]:val}}}}));
+  const updateRate = (id,val) => setWages(p=>({...p,employees:p.employees.map(e=>e.id===id?{...e,rate:parseFloat(val)||0}:e)}));
+  const addEmployee = () => { if(!newEmpName.trim()||!newEmpRate) return; setWages(p=>({...p,employees:[...p.employees,{id:Date.now().toString(),name:newEmpName.trim(),rate:parseFloat(newEmpRate)}]})); setNewEmpName(""); setNewEmpRate(""); };
+  const removeEmployee = id => setWages(p=>({...p,employees:p.employees.filter(e=>e.id!==id)}));
+
+  const dailyWageTotals = DAYS.map((d,i) => {
+    let totalWages=0;
+    wages.employees.forEach(emp=>{ totalWages+=getHours(d,emp.id)*num(emp.rate); });
+    const super_=totalWages*SUPER_RATE;
+    const total=totalWages+super_;
+    const sqData=squareByDate[Object.keys(squareByDate).find(k=>{ const date=new Date(k); return DAYS[date.getDay()===0?6:date.getDay()-1]===d; })||""]||null;
+    const revenue=sqData?sqData.netSales:num(biz[d].revenue);
+    const labourPct=revenue>0?(total/revenue*100).toFixed(1):null;
+    return {day:d,totalWages,super_,total,revenue,labourPct};
+  });
+  const weekTotalWages=dailyWageTotals.reduce((s,d)=>s+d.totalWages,0);
+  const weekSuper=dailyWageTotals.reduce((s,d)=>s+d.super_,0);
+  const weekWageTotal=dailyWageTotals.reduce((s,d)=>s+d.total,0);
+  const weekWageRevenue=dailyWageTotals.reduce((s,d)=>s+d.revenue,0);
+  const weekLabourPct=weekWageRevenue>0?(weekWageTotal/weekWageRevenue*100).toFixed(1):null;
 
   const navItems=[{id:"today",label:"Today",icon:"☀️"},{id:"business",label:"Business",icon:"📊"},{id:"wages",label:"Wages",icon:"💰"},{id:"food",label:"Food Cost",icon:"🍽️"},{id:"calendar",label:"Calendar",icon:"📅"},{id:"day",label:"Day",icon:"📝"}];
 
@@ -360,6 +341,7 @@ export default function App() {
 
       <div style={{flex:1,overflowY:"auto",padding:"20px 18px"}}>
 
+        {/* TODAY */}
         {view==="today"&&(
           <div style={{maxWidth:520,margin:"0 auto"}}>
             <h2 style={{color:OLIVE,fontWeight:"normal",fontSize:20,marginBottom:4}}>Good morning!</h2>
@@ -371,12 +353,12 @@ export default function App() {
             <div style={{background:WHITE,borderRadius:10,padding:16,marginBottom:14}}>
               <div style={{fontSize:11,color:MUTED,letterSpacing:1,marginBottom:12}}>TODAY'S BUSINESS SNAPSHOT</div>
               <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-                <SC label="REVENUE" value={fmtMoney(todayBiz.revenue)} />
-                <SC label="COGS" value={fmtMoney(todayBiz.cogs)} />
-                <SC label="PROFIT" value={num(todayBiz.revenue)>0?fmtMoney(num(todayBiz.revenue)-num(todayBiz.cogs)):"—"} color={num(todayBiz.revenue)-num(todayBiz.cogs)>=0?GREEN:RED} />
+                <SC label="REVENUE" value={fmtMoneyZero(todayBiz.revenue)} />
+                <SC label="COGS" value={fmtMoneyZero(todayBiz.cogs)} />
+                <SC label="PROFIT" value={num(todayBiz.revenue)>0?fmtMoneyZero(num(todayBiz.revenue)-num(todayBiz.cogs)):"—"} color={num(todayBiz.revenue)-num(todayBiz.cogs)>=0?GREEN:RED} />
                 <SC label="MARGIN" value={num(todayBiz.revenue)>0?((num(todayBiz.revenue)-num(todayBiz.cogs))/num(todayBiz.revenue)*100).toFixed(1)+"%":"—"} color={OLIVE} />
               </div>
-              <div style={{marginTop:10,fontSize:12,color:MUTED}}>{todayBiz.sales?todayBiz.sales+" transactions":"No transactions entered"} <span style={{color:OLIVE,cursor:"pointer"}} onClick={()=>setView("business")}> Update</span></div>
+              <div style={{marginTop:10,fontSize:12,color:MUTED}}>{todayBiz.sales?todayBiz.sales+" transactions":"No transactions"} <span style={{color:OLIVE,cursor:"pointer"}} onClick={()=>setView("business")}> Update</span></div>
             </div>
             <div style={{background:WHITE,borderRadius:10,padding:16,marginBottom:14}}>
               <div style={{fontSize:11,color:MUTED,letterSpacing:1,marginBottom:12}}>TODAY'S TASKS</div>
@@ -389,23 +371,22 @@ export default function App() {
               <textarea value={todayEntry.note} onChange={e=>setDiary(p=>({...p,[DAYS[todayIdx]]:{...p[DAYS[todayIdx]],note:e.target.value}}))} placeholder="Jot something down..." style={{width:"100%",minHeight:80,border:"none",background:"transparent",fontFamily:"Georgia, serif",fontSize:14,color:TEXT,resize:"none",outline:"none",lineHeight:1.8,boxSizing:"border-box"}} />
             </div>
             {upcomingTasks.length>0&&<div style={{background:WHITE,borderRadius:10,padding:16,marginBottom:14}}><div style={{fontSize:11,color:MUTED,letterSpacing:1,marginBottom:12}}>COMING UP THIS WEEK</div>{upcomingTasks.map(({d,tasks})=>(<div key={d} style={{marginBottom:10}}><div style={{fontSize:12,color:OLIVE,fontWeight:"bold",marginBottom:4}}>{d}</div>{tasks.map((t,i)=><div key={i} style={{fontSize:13,color:TEXT,padding:"3px 0 3px 10px",borderLeft:"2px solid "+OLIVE_LIGHT}}>{t.text}</div>)}</div>))}</div>}
-            <div style={{background:WHITE,borderRadius:10,padding:16,marginTop:14}}>
+            <div style={{background:WHITE,borderRadius:10,padding:16}}>
               <div style={{fontSize:11,color:MUTED,letterSpacing:1,marginBottom:12}}>BACKUP AND RESTORE</div>
               <div style={{display:"flex",gap:10}}>
                 <button onClick={exportData} style={{flex:1,background:OLIVE_LIGHT,color:OLIVE,border:"1px solid "+OLIVE_MID,borderRadius:7,padding:"8px 12px",cursor:"pointer",fontSize:12,fontFamily:"Georgia, serif"}}>Export Backup</button>
                 <button onClick={()=>importRef.current.click()} style={{flex:1,background:OLIVE_LIGHT,color:OLIVE,border:"1px solid "+OLIVE_MID,borderRadius:7,padding:"8px 12px",cursor:"pointer",fontSize:12,fontFamily:"Georgia, serif"}}>Restore Backup</button>
                 <input ref={importRef} type="file" accept=".json" onChange={importData} style={{display:"none"}} />
               </div>
-              <div style={{fontSize:11,color:MUTED,marginTop:8}}>Your data saves automatically.</div>
             </div>
           </div>
         )}
 
+        {/* BUSINESS */}
         {view==="business"&&(
           <div style={{maxWidth:560,margin:"0 auto"}}>
             <h2 style={{color:OLIVE,fontWeight:"normal",fontSize:20,marginBottom:4}}>Business Dashboard</h2>
             <p style={{color:MUTED,fontSize:13,marginTop:0,marginBottom:18}}>Track daily revenue, sales and COGS.</p>
-
             <div style={{background:WHITE,borderRadius:10,padding:16,marginBottom:18,border:"1px solid "+OLIVE_LIGHT}}>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
                 <div style={{fontSize:11,color:MUTED,letterSpacing:1}}>SQUARE - YESTERDAY'S SALES</div>
@@ -415,65 +396,62 @@ export default function App() {
               {squareData?(
                 <div>
                   <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:10}}>
-                    <SC label="GROSS SALES" value={fmtMoney(squareData.grossSales||squareData.revenue)} color={GREEN} />
-                    <SC label="REFUNDS" value={fmtMoney(squareData.totalRefunds||0)} color={squareData.totalRefunds>0?RED:MUTED} />
-                    <SC label="NET SALES" value={fmtMoney(squareData.netSales||squareData.revenue)} color={GREEN} />
+                    <SC label="GROSS SALES" value={fmtMoneyZero(squareData.grossSales||0)} color={GREEN} />
+                    <SC label="REFUNDS" value={fmtMoneyZero(squareData.totalRefunds||0)} color={squareData.totalRefunds>0?RED:MUTED} />
+                    <SC label="NET SALES" value={fmtMoneyZero(squareData.netSales||0)} color={GREEN} />
                     <SC label="TRANSACTIONS" value={squareData.transactions} />
-                    <SC label="AVG SALE" value={fmtMoney(squareData.avgSale)} />
+                    <SC label="AVG SALE" value={fmtMoneyZero(squareData.avgSale)} />
                   </div>
                   {squareData.paymentTypes&&Object.keys(squareData.paymentTypes).length>0&&(
-                    <div style={{fontSize:12,color:MUTED,marginBottom:10}}>Payment types: {Object.entries(squareData.paymentTypes).map(([k,v])=>k+": "+fmtMoney(v)).join(" | ")}</div>
+                    <div style={{fontSize:12,color:MUTED,marginBottom:10}}>Payment types: {Object.entries(squareData.paymentTypes).map(([k,v])=>k+": $"+v.toFixed(2)).join(" | ")}</div>
                   )}
-                  {squareData&&squareData.hourly&&Object.keys(squareData.hourly).length>0&&(
+                  {squareData.hourly&&Object.keys(squareData.hourly).length>0&&(
                     <div style={{marginTop:10}}>
                       <div style={{fontSize:11,color:MUTED,letterSpacing:1,marginBottom:8}}>HOURLY BREAKDOWN</div>
                       <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
-                        {Object.entries(squareData.hourly).sort((a,b)=>parseInt(a[0])-parseInt(b[0])).map(([sortKey,data])=>(
-                          <div key={sortKey} style={{background:OLIVE_LIGHT,borderRadius:6,padding:"6px 8px",minWidth:65,textAlign:"center"}}>
-                            <div style={{fontSize:10,color:MUTED}}>{data.label||sortKey+":00"}</div>
-                            <div style={{fontSize:12,fontWeight:"bold",color:OLIVE}}>{fmtMoney(data.revenue||0)}</div>
+                        {Object.entries(squareData.hourly).sort((a,b)=>parseInt(a[0])-parseInt(b[0])).map(([k,data])=>(
+                          <div key={k} style={{background:OLIVE_LIGHT,borderRadius:6,padding:"6px 8px",minWidth:65,textAlign:"center"}}>
+                            <div style={{fontSize:10,color:MUTED}}>{data.label||k}</div>
+                            <div style={{fontSize:12,fontWeight:"bold",color:OLIVE}}>${(data.revenue||0).toFixed(2)}</div>
                             <div style={{fontSize:10,color:MUTED}}>{data.transactions||0} txn</div>
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
-                  <div style={{fontSize:11,color:OLIVE_MID,marginTop:8}}>Auto-filled into today's daily entry</div>
+                  <div style={{fontSize:11,color:OLIVE_MID,marginTop:8}}>Auto-filled into today</div>
                 </div>
-              ):(!squareLoading&&<div style={{color:MUTED,fontSize:13}}>No Square data yet. Click Refresh to load.</div>)}
+              ):(!squareLoading&&<div style={{color:MUTED,fontSize:13}}>No Square data. Click Refresh.</div>)}
             </div>
-
             <div style={{background:WHITE,borderRadius:10,padding:16,marginBottom:18,border:"1px solid "+OLIVE_LIGHT}}>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
                 <div style={{fontSize:11,color:MUTED,letterSpacing:1}}>XERO - THIS MONTH'S P&L</div>
                 {xeroToken
                   ?<button onClick={()=>fetchXeroData(xeroToken,xeroTenant)} style={{background:OLIVE_LIGHT,color:OLIVE,border:"1px solid "+OLIVE_MID,borderRadius:7,padding:"4px 12px",cursor:"pointer",fontSize:12,fontFamily:"Georgia, serif"}}>{xeroLoading?"Loading...":"Refresh"}</button>
-                  :<button onClick={()=>{ window.location.href="https://urban-kitchen-diary-app.vercel.app/api/xero-auth"; }} style={{background:OLIVE,color:WHITE,border:"none",borderRadius:7,padding:"6px 14px",cursor:"pointer",fontSize:12,fontFamily:"Georgia, serif"}}>Connect Xero</button>                }
+                  :<button onClick={()=>{ window.location.href="https://urban-kitchen-diary-app.vercel.app/api/xero-auth"; }} style={{background:OLIVE,color:WHITE,border:"none",borderRadius:7,padding:"6px 14px",cursor:"pointer",fontSize:12,fontFamily:"Georgia, serif"}}>Connect Xero</button>
+                }
               </div>
               {xeroError&&<div style={{color:RED,fontSize:12,marginBottom:8}}>{xeroError}</div>}
               {xeroData?(
                 <div>
                   <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:10}}>
-                    <SC label="REVENUE" value={fmtMoney(xeroData.revenue)} color={GREEN} />
-                    <SC label="COGS" value={fmtMoney(xeroData.cogs)} />
-                    <SC label="EXPENSES" value={fmtMoney(xeroData.expenses)} />
-                    <SC label="GROSS PROFIT" value={fmtMoney(xeroData.grossProfit)} color={xeroData.grossProfit>=0?GREEN:RED} />
-                    <SC label="NET PROFIT" value={fmtMoney(xeroData.netProfit)} color={xeroData.netProfit>=0?GREEN:RED} />
+                    <SC label="REVENUE" value={fmtMoneyZero(xeroData.revenue)} color={GREEN} />
+                    <SC label="COGS" value={fmtMoneyZero(xeroData.cogs)} />
+                    <SC label="EXPENSES" value={fmtMoneyZero(xeroData.expenses)} />
+                    <SC label="GROSS PROFIT" value={fmtMoneyZero(xeroData.grossProfit)} color={xeroData.grossProfit>=0?GREEN:RED} />
+                    <SC label="NET PROFIT" value={fmtMoneyZero(xeroData.netProfit)} color={xeroData.netProfit>=0?GREEN:RED} />
                     <SC label="GROSS MARGIN" value={xeroData.grossMargin+"%"} color={parseFloat(xeroData.grossMargin)>=60?GREEN:parseFloat(xeroData.grossMargin)>=40?AMBER:RED} />
                   </div>
                   <div style={{fontSize:11,color:MUTED}}>{xeroData.fromDate} to {xeroData.toDate}</div>
-                  <div style={{fontSize:11,color:OLIVE_MID,marginTop:6}}>Daily COGS auto-filled from Xero</div>
                 </div>
-              ):(!xeroLoading&&!xeroToken&&<div style={{color:MUTED,fontSize:13}}>Click Connect Xero to sync your P&L data.</div>)}
+              ):(!xeroLoading&&!xeroToken&&<div style={{color:MUTED,fontSize:13}}>Click Connect Xero to sync P&L data.</div>)}
             </div>
-
             <div style={{display:"flex",gap:10,marginBottom:18,flexWrap:"wrap"}}>
-              <SC label="WEEK REVENUE" value={fmtMoney(weekRevenue)} />
-              <SC label="WEEK COGS" value={fmtMoney(weekCogs)} />
-              <SC label="GROSS PROFIT" value={fmtMoney(weekProfit)} color={weekProfit>=0?GREEN:RED} />
+              <SC label="WEEK REVENUE" value={fmtMoneyZero(weekRevenue)} />
+              <SC label="WEEK COGS" value={fmtMoneyZero(weekCogs)} />
+              <SC label="GROSS PROFIT" value={fmtMoneyZero(weekProfit)} color={weekProfit>=0?GREEN:RED} />
               <SC label="MARGIN" value={weekMargin+"%"} color={parseFloat(weekMargin)>=50?GREEN:parseFloat(weekMargin)>=30?OLIVE:RED} />
             </div>
-            {weekSales>0&&<div style={{fontSize:13,color:MUTED,marginBottom:18}}>Total transactions: <strong style={{color:TEXT}}>{weekSales}</strong> Avg sale: <strong style={{color:TEXT}}>{weekRevenue>0?fmtMoney(weekRevenue/weekSales):"—"}</strong></div>}
             <div style={{background:WHITE,borderRadius:10,padding:16,marginBottom:18}}>
               <div style={{fontSize:11,color:MUTED,letterSpacing:1,marginBottom:10}}>IMPORT FROM CSV</div>
               <button onClick={()=>bizFileRef.current.click()} style={{background:OLIVE_LIGHT,color:OLIVE,border:"1px solid "+OLIVE,borderRadius:7,padding:"8px 16px",cursor:"pointer",fontSize:13,fontFamily:"Georgia, serif"}}>Upload CSV</button>
@@ -489,7 +467,6 @@ export default function App() {
                     {margin&&<div style={{fontSize:12,color:profit>=0?GREEN:RED}}>{margin}% margin</div>}
                   </div>
                   <div style={{display:"flex",gap:8}}><BI label="Revenue" field="revenue" d={d} /><BI label="COGS" field="cogs" d={d} /><BI label="Transactions" field="sales" d={d} /></div>
-                  {num(b.revenue)>0&&<div style={{marginTop:8,fontSize:12,color:MUTED}}>Gross profit: <strong style={{color:profit>=0?GREEN:RED}}>{fmtMoney(profit)}</strong>{b.sales?" Avg sale: "+fmtMoney(num(b.revenue)/num(b.sales)):""}</div>}
                 </div>);})}
             </div>
             <div style={{background:WHITE,borderRadius:10,padding:16}}>
@@ -497,236 +474,168 @@ export default function App() {
               <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
                 <thead><tr style={{borderBottom:"2px solid "+OLIVE_LIGHT}}>{["Day","Revenue","COGS","Profit","Margin"].map(h=><th key={h} style={{textAlign:h==="Day"?"left":"right",padding:"6px 4px",color:MUTED,fontWeight:"normal",fontSize:11}}>{h.toUpperCase()}</th>)}</tr></thead>
                 <tbody>
-                  {DAYS.map((d,i)=>{const b=biz[d];const profit=num(b.revenue)-num(b.cogs);const margin=num(b.revenue)>0?(profit/num(b.revenue)*100).toFixed(1)+"%":"—";return(<tr key={d} style={{borderBottom:"1px solid "+OLIVE_LIGHT,background:i===todayIdx?OLIVE_LIGHT:"transparent"}}><td style={{padding:"8px 4px",color:i===todayIdx?OLIVE:TEXT,fontWeight:i===todayIdx?"bold":"normal"}}>{SHORT[i]}</td><td style={{padding:"8px 4px",textAlign:"right"}}>{fmtMoney(b.revenue)}</td><td style={{padding:"8px 4px",textAlign:"right"}}>{fmtMoney(b.cogs)}</td><td style={{padding:"8px 4px",textAlign:"right",color:num(b.revenue)>0?(profit>=0?GREEN:RED):MUTED}}>{num(b.revenue)>0?fmtMoney(profit):"—"}</td><td style={{padding:"8px 4px",textAlign:"right",color:num(b.revenue)>0?(parseFloat(margin)>=30?GREEN:RED):MUTED}}>{margin}</td></tr>);})}
-                  <tr style={{borderTop:"2px solid "+OLIVE}}><td style={{padding:"8px 4px",fontWeight:"bold",color:OLIVE}}>Total</td><td style={{padding:"8px 4px",textAlign:"right",fontWeight:"bold"}}>{fmtMoney(weekRevenue)}</td><td style={{padding:"8px 4px",textAlign:"right",fontWeight:"bold"}}>{fmtMoney(weekCogs)}</td><td style={{padding:"8px 4px",textAlign:"right",fontWeight:"bold",color:weekProfit>=0?GREEN:RED}}>{fmtMoney(weekProfit)}</td><td style={{padding:"8px 4px",textAlign:"right",fontWeight:"bold",color:parseFloat(weekMargin)>=30?GREEN:RED}}>{weekMargin}%</td></tr>
+                  {DAYS.map((d,i)=>{const b=biz[d];const profit=num(b.revenue)-num(b.cogs);const margin=num(b.revenue)>0?(profit/num(b.revenue)*100).toFixed(1)+"%":"—";return(<tr key={d} style={{borderBottom:"1px solid "+OLIVE_LIGHT,background:i===todayIdx?OLIVE_LIGHT:"transparent"}}><td style={{padding:"8px 4px",color:i===todayIdx?OLIVE:TEXT,fontWeight:i===todayIdx?"bold":"normal"}}>{SHORT[i]}</td><td style={{padding:"8px 4px",textAlign:"right"}}>{fmtMoneyZero(b.revenue)}</td><td style={{padding:"8px 4px",textAlign:"right"}}>{fmtMoneyZero(b.cogs)}</td><td style={{padding:"8px 4px",textAlign:"right",color:num(b.revenue)>0?(profit>=0?GREEN:RED):MUTED}}>{num(b.revenue)>0?fmtMoneyZero(profit):"—"}</td><td style={{padding:"8px 4px",textAlign:"right"}}>{margin}</td></tr>);})}
+                  <tr style={{borderTop:"2px solid "+OLIVE}}><td style={{padding:"8px 4px",fontWeight:"bold",color:OLIVE}}>Total</td><td style={{padding:"8px 4px",textAlign:"right",fontWeight:"bold"}}>{fmtMoneyZero(weekRevenue)}</td><td style={{padding:"8px 4px",textAlign:"right",fontWeight:"bold"}}>{fmtMoneyZero(weekCogs)}</td><td style={{padding:"8px 4px",textAlign:"right",fontWeight:"bold",color:weekProfit>=0?GREEN:RED}}>{fmtMoneyZero(weekProfit)}</td><td style={{padding:"8px 4px",textAlign:"right",fontWeight:"bold"}}>{weekMargin}%</td></tr>
                 </tbody>
               </table>
             </div>
           </div>
         )}
 
-        {view==="wages"&&(()=>{
-          const SUPER_RATE = 0.12;
-
-          // Calculate daily wage totals
-          const dailyTotals = DAYS.map(d => {
-            let totalWages = 0;
-            wages.employees.forEach(emp => {
-              const hours = getHours(d, emp.id);
-              totalWages += hours * num(emp.rate);
-            });
-            const super_ = totalWages * SUPER_RATE;
-            const total = totalWages + super_;
-            const sqData = squareByDate[Object.keys(squareByDate).find(k => {
-              const date = new Date(k);
-              return DAYS[date.getDay()===0?6:date.getDay()-1] === d;
-            }) || ""] || null;
-            const revenue = sqData ? sqData.netSales : num(biz[d].revenue);
-            const labourPct = revenue > 0 ? (total / revenue * 100).toFixed(1) : null;
-            return { day: d, totalWages, super_, total, revenue, labourPct };
-          });
-
-          const weekTotalWages = dailyTotals.reduce((s,d)=>s+d.totalWages,0);
-          const weekSuper = dailyTotals.reduce((s,d)=>s+d.super_,0);
-          const weekTotal = dailyTotals.reduce((s,d)=>s+d.total,0);
-          const weekRevenue = dailyTotals.reduce((s,d)=>s+d.revenue,0);
-          const weekLabourPct = weekRevenue > 0 ? (weekTotal/weekRevenue*100).toFixed(1) : null;
-
-          const updateShift = (day, empId, field, val) => setWages(p=>({
-            ...p, timesheets:{...p.timesheets,[day]:{
-              ...p.timesheets[day],
-              [empId]:{...(p.timesheets[day]?.[empId]||{}),[field]:val}
-            }}
-          }));
-
-          const getHours = (day, empId) => {
-            const shift = wages.timesheets[day]?.[empId] || {};
-            const code = shift.code || "";
-            if(["O","S","D"].includes(code)) return 0;
-            return num(shift.hours || 0);
-          };
-
-          const addEmployee = () => {
-            if(!newEmpName.trim()||!newEmpRate) return;
-            const emp = {id: Date.now().toString(), name: newEmpName.trim(), rate: parseFloat(newEmpRate)};
-            setWages(p=>({...p, employees:[...p.employees, emp]}));
-            setNewEmpName(""); setNewEmpRate("");
-          };
-
-          const removeEmployee = id => setWages(p=>({...p, employees:p.employees.filter(e=>e.id!==id)}));
-          const updateRate = (id, val) => setWages(p=>({...p, employees:p.employees.map(e=>e.id===id?{...e,rate:parseFloat(val)||0}:e)}));
-
-          return (
-            <div style={{maxWidth:700,margin:"0 auto"}}>
-              <h2 style={{color:OLIVE,fontWeight:"normal",fontSize:20,marginBottom:4}}>Wages</h2>
-              <p style={{color:MUTED,fontSize:13,marginTop:0,marginBottom:20}}>Track employee hours, wages and superannuation (12%).</p>
-
-              {/* Weekly summary */}
-              <div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap"}}>
-                <SC label="WEEK WAGES" value={fmtMoney(weekTotalWages)} />
-                <SC label="WEEK SUPER" value={fmtMoney(weekSuper)} color={AMBER} />
-                <SC label="TOTAL COST" value={fmtMoney(weekTotal)} color={RED} />
-                <SC label="LABOUR %" value={weekLabourPct?weekLabourPct+"%":"—"} color={weekLabourPct?(parseFloat(weekLabourPct)<=30?GREEN:parseFloat(weekLabourPct)<=40?AMBER:RED):MUTED} />
-              </div>
-
-              {/* Employee list */}
-              <div style={{background:WHITE,borderRadius:10,padding:16,marginBottom:18}}>
-                <div style={{fontSize:11,color:MUTED,letterSpacing:1,marginBottom:14}}>EMPLOYEES</div>
-                {wages.employees.map(emp=>(
-                  <div key={emp.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:"1px solid "+OLIVE_LIGHT}}>
-                    <div style={{flex:1,fontSize:14,color:TEXT,fontWeight:"500"}}>{emp.name}</div>
-                    <div style={{fontSize:12,color:MUTED}}>$</div>
-                    <input type="number" value={emp.rate} onChange={e=>updateRate(emp.id,e.target.value)}
-                      style={{width:70,padding:"4px 8px",borderRadius:6,border:"1px solid "+OLIVE_LIGHT,background:OLIVE_LIGHT,fontFamily:"Georgia, serif",fontSize:13,color:TEXT,outline:"none"}} />
-                    <div style={{fontSize:12,color:MUTED}}>/hr</div>
-                    <button onClick={()=>removeEmployee(emp.id)} style={{background:"none",border:"none",color:OLIVE_LIGHT,cursor:"pointer",fontSize:18}}>×</button>
-                  </div>
-                ))}
-                {wages.employees.length===0&&<div style={{color:MUTED,fontSize:13,marginBottom:12}}>No employees yet. Add one below.</div>}
-                <div style={{display:"flex",gap:8,marginTop:14}}>
-                  <input value={newEmpName} onChange={e=>setNewEmpName(e.target.value)} placeholder="Employee name"
-                    style={{flex:2,padding:"8px 12px",borderRadius:7,border:"1px solid "+OLIVE_LIGHT,background:OLIVE_LIGHT,fontFamily:"Georgia, serif",fontSize:13,color:TEXT,outline:"none"}} />
-                  <div style={{position:"relative",flex:1}}>
-                    <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:MUTED,fontSize:13}}>$</span>
-                    <input type="number" value={newEmpRate} onChange={e=>setNewEmpRate(e.target.value)} placeholder="Hourly rate"
-                      style={{width:"100%",padding:"8px 8px 8px 22px",borderRadius:7,border:"1px solid "+OLIVE_LIGHT,background:OLIVE_LIGHT,fontFamily:"Georgia, serif",fontSize:13,color:TEXT,outline:"none",boxSizing:"border-box"}} />
-                  </div>
-                  <button onClick={addEmployee} style={{background:OLIVE,color:WHITE,border:"none",borderRadius:7,padding:"8px 16px",cursor:"pointer",fontSize:13}}>Add</button>
-                </div>
-              </div>
-
-              {wages.employees.length > 0 && (
-                <div style={{background:WHITE,borderRadius:10,padding:16,marginBottom:18}}>
-                  <div style={{fontSize:11,color:MUTED,letterSpacing:1,marginBottom:6}}>WEEKLY TIMESHEET</div>
-                  <div style={{fontSize:11,color:MUTED,marginBottom:14}}>Codes: O=Off · S=Sick · E=Early · D=Day Off</div>
-                  <div style={{overflowX:"auto"}}>
-                    <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
-                      <thead>
-                        <tr style={{borderBottom:"2px solid "+OLIVE_LIGHT}}>
-                          <th style={{textAlign:"left",padding:"6px 8px",color:MUTED,fontWeight:"normal",fontSize:11,minWidth:80}}>EMPLOYEE</th>
-                          {DAYS.map((d,i)=>(
-                            <th key={d} style={{textAlign:"center",padding:"6px 4px",color:i===todayIdx?OLIVE:MUTED,fontWeight:i===todayIdx?"bold":"normal",fontSize:11,minWidth:80}}>
-                              {SHORT[i]}<br/>
-                              <span style={{fontSize:9,fontWeight:"normal"}}>{dailyTotals[i].totalWages>0?fmtMoney(dailyTotals[i].total):""}</span>
-                            </th>
-                          ))}
-                          <th style={{textAlign:"right",padding:"6px 8px",color:MUTED,fontWeight:"normal",fontSize:11}}>HRS</th>
-                          <th style={{textAlign:"right",padding:"6px 8px",color:MUTED,fontWeight:"normal",fontSize:11}}>WAGES</th>
-                          <th style={{textAlign:"right",padding:"6px 8px",color:MUTED,fontWeight:"normal",fontSize:11}}>SUPER</th>
-                          <th style={{textAlign:"right",padding:"6px 8px",color:MUTED,fontWeight:"normal",fontSize:11}}>TOTAL</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {wages.employees.map((emp,ei)=>{
-                          const totalHrs = DAYS.reduce((s,d)=>s+getHours(d,emp.id),0);
-                          const totalWages = totalHrs * num(emp.rate);
-                          const super_ = totalWages * SUPER_RATE;
-                          return(
-                            <tr key={emp.id} style={{borderBottom:"1px solid "+OLIVE_LIGHT,background:ei%2===0?"transparent":"#f9fbf5"}}>
-                              <td style={{padding:"6px 8px"}}>
-                                <div style={{fontSize:13,color:TEXT,fontWeight:"500"}}>{emp.name}</div>
-                                <div style={{display:"flex",alignItems:"center",gap:4,marginTop:2}}>
-                                  <span style={{fontSize:10,color:MUTED}}>$</span>
-                                  <input type="number" value={emp.rate} onChange={e=>updateRate(emp.id,e.target.value)}
-                                    style={{width:45,padding:"2px 4px",borderRadius:5,border:"1px solid "+OLIVE_LIGHT,background:"transparent",fontFamily:"Georgia, serif",fontSize:10,color:MUTED,outline:"none"}} />
-                                  <span style={{fontSize:10,color:MUTED}}>/hr</span>
-                                </div>
-                              </td>
-                              {DAYS.map((d,di)=>{
-                                const shift = wages.timesheets[d]?.[emp.id] || {};
-                                const code = shift.code || "";
-                                const hours = shift.hours || "";
-                                const start = shift.start || "";
-                                const isCode = ["O","S","E","D"].includes(code);
-                                return(
-                                  <td key={d} style={{padding:"4px",textAlign:"center",background:di===todayIdx?OLIVE_LIGHT+"55":"transparent"}}>
-                                    {isCode?(
-                                      <div style={{display:"flex",flexDirection:"column",gap:2,alignItems:"center"}}>
-                                        <div style={{background:code==="S"?RED:code==="E"?"#9b59b6":MUTED,color:WHITE,borderRadius:4,padding:"2px 6px",fontSize:11,fontWeight:"bold"}}>{code}</div>
-                                        <button onClick={()=>updateShift(d,emp.id,"code","")} style={{fontSize:9,color:MUTED,background:"none",border:"none",cursor:"pointer"}}>clear</button>
-                                      </div>
-                                    ):(
-                                      <div style={{display:"flex",flexDirection:"column",gap:2}}>
-                                        <input value={start} onChange={e=>updateShift(d,emp.id,"start",e.target.value)}
-                                          placeholder="start" style={{width:50,textAlign:"center",padding:"2px",borderRadius:4,border:"1px solid "+OLIVE_LIGHT,fontFamily:"Georgia, serif",fontSize:10,color:TEXT,outline:"none"}} />
-                                        <input type="number" min="0" max="24" step="0.5" value={hours}
-                                          onChange={e=>updateShift(d,emp.id,"hours",e.target.value)}
-                                          placeholder="hrs" style={{width:50,textAlign:"center",padding:"2px",borderRadius:4,border:"1px solid "+OLIVE_LIGHT,fontFamily:"Georgia, serif",fontSize:11,color:TEXT,outline:"none"}} />
-                                        <div style={{display:"flex",gap:2,justifyContent:"center"}}>
-                                          {["O","S","D"].map(c=>(
-                                            <button key={c} onClick={()=>updateShift(d,emp.id,"code",c)}
-                                              style={{fontSize:9,padding:"1px 4px",borderRadius:3,border:"1px solid "+OLIVE_LIGHT,background:OLIVE_LIGHT,cursor:"pointer",color:MUTED,fontFamily:"Georgia, serif"}}>{c}</button>
-                                          ))}
-                                        </div>
-                                      </div>
-                                    )}
-                                  </td>
-                                );
-                              })}
-                              <td style={{padding:"8px",textAlign:"right",fontWeight:"bold",color:TEXT}}>{totalHrs.toFixed(1)}</td>
-                              <td style={{padding:"8px",textAlign:"right",color:TEXT}}>{fmtMoney(totalWages)}</td>
-                              <td style={{padding:"8px",textAlign:"right",color:AMBER}}>{fmtMoney(super_)}</td>
-                              <td style={{padding:"8px",textAlign:"right",fontWeight:"bold",color:RED}}>{fmtMoney(totalWages+super_)}</td>
-                            </tr>
-                          );
-                        })}
-                        <tr style={{borderTop:"2px solid "+OLIVE,background:OLIVE_LIGHT}}>
-                          <td style={{padding:"8px",fontWeight:"bold",color:OLIVE,fontSize:12}}>TOTALS</td>
-                          {dailyTotals.map((dt,i)=>(
-                            <td key={i} style={{padding:"6px 4px",textAlign:"center"}}>
-                              {dt.total>0&&<div style={{fontSize:11,fontWeight:"bold",color:RED}}>{fmtMoney(dt.total)}</div>}
-                              {dt.labourPct&&<div style={{fontSize:10,color:parseFloat(dt.labourPct)<=30?GREEN:parseFloat(dt.labourPct)<=40?AMBER:RED}}>{dt.labourPct}%</div>}
-                            </td>
-                          ))}
-                          <td style={{padding:"8px",textAlign:"right",fontWeight:"bold",color:OLIVE}}>{wages.employees.reduce((s,emp)=>s+DAYS.reduce((ss,d)=>ss+getHours(d,emp.id),0),0).toFixed(1)}</td>
-                          <td style={{padding:"8px",textAlign:"right",fontWeight:"bold"}}>{fmtMoney(weekTotalWages)}</td>
-                          <td style={{padding:"8px",textAlign:"right",fontWeight:"bold",color:AMBER}}>{fmtMoney(weekSuper)}</td>
-                          <td style={{padding:"8px",textAlign:"right",fontWeight:"bold",color:RED}}>{fmtMoney(weekTotal)}</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {/* Daily wage report */}
-              {wages.employees.length > 0 && (
-                <div style={{background:WHITE,borderRadius:10,padding:16}}>
-                  <div style={{fontSize:11,color:MUTED,letterSpacing:1,marginBottom:14}}>DAILY WAGE REPORT</div>
-                  <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
-                    <thead>
-                      <tr style={{borderBottom:"2px solid "+OLIVE_LIGHT}}>
-                        {["Day","Revenue","Wages","Super","Total Cost","Labour %"].map(h=>(
-                          <th key={h} style={{textAlign:h==="Day"?"left":"right",padding:"6px 4px",color:MUTED,fontWeight:"normal",fontSize:11}}>{h.toUpperCase()}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {dailyTotals.map((dt,i)=>(
-                        <tr key={dt.day} style={{borderBottom:"1px solid "+OLIVE_LIGHT,background:i===todayIdx?OLIVE_LIGHT:"transparent"}}>
-                          <td style={{padding:"8px 4px",color:i===todayIdx?OLIVE:TEXT,fontWeight:i===todayIdx?"bold":"normal"}}>{SHORT[i]}</td>
-                          <td style={{padding:"8px 4px",textAlign:"right"}}>{dt.revenue>0?fmtMoney(dt.revenue):"—"}</td>
-                          <td style={{padding:"8px 4px",textAlign:"right"}}>{dt.totalWages>0?fmtMoney(dt.totalWages):"—"}</td>
-                          <td style={{padding:"8px 4px",textAlign:"right",color:AMBER}}>{dt.super_>0?fmtMoney(dt.super_):"—"}</td>
-                          <td style={{padding:"8px 4px",textAlign:"right",fontWeight:"bold",color:dt.total>0?RED:MUTED}}>{dt.total>0?fmtMoney(dt.total):"—"}</td>
-                          <td style={{padding:"8px 4px",textAlign:"right",fontWeight:"bold",color:dt.labourPct?(parseFloat(dt.labourPct)<=30?GREEN:parseFloat(dt.labourPct)<=40?AMBER:RED):MUTED}}>{dt.labourPct?dt.labourPct+"%":"—"}</td>
-                        </tr>
-                      ))}
-                      <tr style={{borderTop:"2px solid "+OLIVE}}>
-                        <td style={{padding:"8px 4px",fontWeight:"bold",color:OLIVE}}>Total</td>
-                        <td style={{padding:"8px 4px",textAlign:"right",fontWeight:"bold"}}>{fmtMoney(weekRevenue)}</td>
-                        <td style={{padding:"8px 4px",textAlign:"right",fontWeight:"bold"}}>{fmtMoney(weekTotalWages)}</td>
-                        <td style={{padding:"8px 4px",textAlign:"right",fontWeight:"bold",color:AMBER}}>{fmtMoney(weekSuper)}</td>
-                        <td style={{padding:"8px 4px",textAlign:"right",fontWeight:"bold",color:RED}}>{fmtMoney(weekTotal)}</td>
-                        <td style={{padding:"8px 4px",textAlign:"right",fontWeight:"bold",color:weekLabourPct?(parseFloat(weekLabourPct)<=30?GREEN:parseFloat(weekLabourPct)<=40?AMBER:RED):MUTED}}>{weekLabourPct?weekLabourPct+"%":"—"}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              )}
+        {/* WAGES */}
+        {view==="wages"&&(
+          <div style={{maxWidth:900,margin:"0 auto"}}>
+            <h2 style={{color:OLIVE,fontWeight:"normal",fontSize:20,marginBottom:4}}>Wages</h2>
+            <p style={{color:MUTED,fontSize:13,marginTop:0,marginBottom:20}}>Track employee hours, wages and superannuation (12%).</p>
+            <div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap"}}>
+              <SC label="WEEK WAGES" value={fmtMoneyZero(weekTotalWages)} />
+              <SC label="WEEK SUPER" value={fmtMoneyZero(weekSuper)} color={AMBER} />
+              <SC label="TOTAL COST" value={fmtMoneyZero(weekWageTotal)} color={RED} />
+              <SC label="LABOUR %" value={weekLabourPct?weekLabourPct+"%":"—"} color={weekLabourPct?(parseFloat(weekLabourPct)<=30?GREEN:parseFloat(weekLabourPct)<=40?AMBER:RED):MUTED} />
             </div>
-          );
-        })()}
+            <div style={{background:WHITE,borderRadius:10,padding:16,marginBottom:18}}>
+              <div style={{fontSize:11,color:MUTED,letterSpacing:1,marginBottom:14}}>EMPLOYEES</div>
+              {wages.employees.map(emp=>(
+                <div key={emp.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:"1px solid "+OLIVE_LIGHT}}>
+                  <div style={{flex:1,fontSize:14,color:TEXT,fontWeight:"500"}}>{emp.name}</div>
+                  <div style={{fontSize:12,color:MUTED}}>$</div>
+                  <input type="number" value={emp.rate} onChange={e=>updateRate(emp.id,e.target.value)}
+                    style={{width:70,padding:"4px 8px",borderRadius:6,border:"1px solid "+OLIVE_LIGHT,background:OLIVE_LIGHT,fontFamily:"Georgia, serif",fontSize:13,color:TEXT,outline:"none"}} />
+                  <div style={{fontSize:12,color:MUTED}}>/hr</div>
+                  <button onClick={()=>removeEmployee(emp.id)} style={{background:"none",border:"none",color:OLIVE_LIGHT,cursor:"pointer",fontSize:18}}>x</button>
+                </div>
+              ))}
+              <div style={{display:"flex",gap:8,marginTop:14}}>
+                <input value={newEmpName} onChange={e=>setNewEmpName(e.target.value)} placeholder="Employee name"
+                  style={{flex:2,padding:"8px 12px",borderRadius:7,border:"1px solid "+OLIVE_LIGHT,background:OLIVE_LIGHT,fontFamily:"Georgia, serif",fontSize:13,color:TEXT,outline:"none"}} />
+                <div style={{position:"relative",flex:1}}>
+                  <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:MUTED,fontSize:13}}>$</span>
+                  <input type="number" value={newEmpRate} onChange={e=>setNewEmpRate(e.target.value)} placeholder="Rate"
+                    style={{width:"100%",padding:"8px 8px 8px 22px",borderRadius:7,border:"1px solid "+OLIVE_LIGHT,background:OLIVE_LIGHT,fontFamily:"Georgia, serif",fontSize:13,color:TEXT,outline:"none",boxSizing:"border-box"}} />
+                </div>
+                <button onClick={addEmployee} style={{background:OLIVE,color:WHITE,border:"none",borderRadius:7,padding:"8px 16px",cursor:"pointer",fontSize:13}}>Add</button>
+              </div>
+            </div>
+            <div style={{background:WHITE,borderRadius:10,padding:16,marginBottom:18}}>
+              <div style={{fontSize:11,color:MUTED,letterSpacing:1,marginBottom:6}}>WEEKLY TIMESHEET</div>
+              <div style={{fontSize:11,color:MUTED,marginBottom:14}}>Codes: O=Off · S=Sick · E=Early · D=Day Off</div>
+              <div style={{overflowX:"auto"}}>
+                <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                  <thead>
+                    <tr style={{borderBottom:"2px solid "+OLIVE_LIGHT}}>
+                      <th style={{textAlign:"left",padding:"6px 8px",color:MUTED,fontWeight:"normal",fontSize:11,minWidth:90}}>EMPLOYEE</th>
+                      {DAYS.map((d,i)=>(
+                        <th key={d} style={{textAlign:"center",padding:"6px 4px",color:i===todayIdx?OLIVE:MUTED,fontWeight:i===todayIdx?"bold":"normal",fontSize:11,minWidth:75}}>
+                          {SHORT[i]}
+                          {dailyWageTotals[i].total>0&&<div style={{fontSize:9,color:RED,fontWeight:"normal"}}>{fmtMoneyZero(dailyWageTotals[i].total)}</div>}
+                        </th>
+                      ))}
+                      <th style={{textAlign:"right",padding:"6px 8px",color:MUTED,fontWeight:"normal",fontSize:11}}>HRS</th>
+                      <th style={{textAlign:"right",padding:"6px 8px",color:MUTED,fontWeight:"normal",fontSize:11}}>WAGES</th>
+                      <th style={{textAlign:"right",padding:"6px 8px",color:MUTED,fontWeight:"normal",fontSize:11}}>SUPER</th>
+                      <th style={{textAlign:"right",padding:"6px 8px",color:MUTED,fontWeight:"normal",fontSize:11}}>TOTAL</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {wages.employees.map((emp,ei)=>{
+                      const totalHrs=DAYS.reduce((s,d)=>s+getHours(d,emp.id),0);
+                      const totalWages=totalHrs*num(emp.rate);
+                      const super_=totalWages*SUPER_RATE;
+                      return(
+                        <tr key={emp.id} style={{borderBottom:"1px solid "+OLIVE_LIGHT,background:ei%2===0?"transparent":"#f9fbf5"}}>
+                          <td style={{padding:"6px 8px"}}>
+                            <div style={{fontSize:13,color:TEXT,fontWeight:"500"}}>{emp.name}</div>
+                            <div style={{display:"flex",alignItems:"center",gap:2,marginTop:2}}>
+                              <span style={{fontSize:10,color:MUTED}}>$</span>
+                              <input type="number" value={emp.rate} onChange={e=>updateRate(emp.id,e.target.value)}
+                                style={{width:40,padding:"2px 4px",borderRadius:4,border:"1px solid "+OLIVE_LIGHT,background:"transparent",fontFamily:"Georgia, serif",fontSize:10,color:MUTED,outline:"none"}} />
+                              <span style={{fontSize:10,color:MUTED}}>/hr</span>
+                            </div>
+                          </td>
+                          {DAYS.map((d,di)=>{
+                            const shift=wages.timesheets[d]?.[emp.id]||{};
+                            const code=shift.code||"";
+                            const isCode=["O","S","E","D"].includes(code);
+                            return(
+                              <td key={d} style={{padding:"4px",textAlign:"center",background:di===todayIdx?OLIVE_LIGHT+"44":"transparent"}}>
+                                {isCode?(
+                                  <div style={{display:"flex",flexDirection:"column",gap:2,alignItems:"center"}}>
+                                    <div style={{background:code==="S"?RED:code==="E"?"#9b59b6":MUTED,color:WHITE,borderRadius:4,padding:"2px 8px",fontSize:12,fontWeight:"bold"}}>{code}</div>
+                                    <button onClick={()=>updateShift(d,emp.id,"code","")} style={{fontSize:9,color:MUTED,background:"none",border:"none",cursor:"pointer"}}>clear</button>
+                                  </div>
+                                ):(
+                                  <div style={{display:"flex",flexDirection:"column",gap:2}}>
+                                    <input value={shift.start||""} onChange={e=>updateShift(d,emp.id,"start",e.target.value)}
+                                      placeholder="start" style={{width:52,textAlign:"center",padding:"2px",borderRadius:4,border:"1px solid "+OLIVE_LIGHT,fontFamily:"Georgia, serif",fontSize:10,color:TEXT,outline:"none"}} />
+                                    <input type="number" min="0" max="24" step="0.5" value={shift.hours||""}
+                                      onChange={e=>updateShift(d,emp.id,"hours",e.target.value)}
+                                      placeholder="hrs" style={{width:52,textAlign:"center",padding:"2px",borderRadius:4,border:"1px solid "+OLIVE_LIGHT,fontFamily:"Georgia, serif",fontSize:11,color:TEXT,outline:"none"}} />
+                                    <div style={{display:"flex",gap:2,justifyContent:"center"}}>
+                                      {["O","S","D"].map(c=>(
+                                        <button key={c} onClick={()=>updateShift(d,emp.id,"code",c)}
+                                          style={{fontSize:9,padding:"1px 4px",borderRadius:3,border:"1px solid "+OLIVE_LIGHT,background:OLIVE_LIGHT,cursor:"pointer",color:MUTED,fontFamily:"Georgia, serif"}}>{c}</button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </td>
+                            );
+                          })}
+                          <td style={{padding:"8px",textAlign:"right",fontWeight:"bold",color:TEXT}}>{totalHrs.toFixed(1)}</td>
+                          <td style={{padding:"8px",textAlign:"right",color:TEXT}}>{fmtMoneyZero(totalWages)}</td>
+                          <td style={{padding:"8px",textAlign:"right",color:AMBER}}>{fmtMoneyZero(super_)}</td>
+                          <td style={{padding:"8px",textAlign:"right",fontWeight:"bold",color:RED}}>{fmtMoneyZero(totalWages+super_)}</td>
+                        </tr>
+                      );
+                    })}
+                    <tr style={{borderTop:"2px solid "+OLIVE,background:OLIVE_LIGHT}}>
+                      <td style={{padding:"8px",fontWeight:"bold",color:OLIVE,fontSize:12}}>TOTALS</td>
+                      {dailyWageTotals.map((dt,i)=>(
+                        <td key={i} style={{padding:"6px 4px",textAlign:"center"}}>
+                          {dt.total>0&&<div style={{fontSize:11,fontWeight:"bold",color:RED}}>{fmtMoneyZero(dt.total)}</div>}
+                          {dt.labourPct&&<div style={{fontSize:10,color:parseFloat(dt.labourPct)<=30?GREEN:parseFloat(dt.labourPct)<=40?AMBER:RED}}>{dt.labourPct}%</div>}
+                        </td>
+                      ))}
+                      <td style={{padding:"8px",textAlign:"right",fontWeight:"bold",color:OLIVE}}>{wages.employees.reduce((s,emp)=>s+DAYS.reduce((ss,d)=>ss+getHours(d,emp.id),0),0).toFixed(1)}</td>
+                      <td style={{padding:"8px",textAlign:"right",fontWeight:"bold"}}>{fmtMoneyZero(weekTotalWages)}</td>
+                      <td style={{padding:"8px",textAlign:"right",fontWeight:"bold",color:AMBER}}>{fmtMoneyZero(weekSuper)}</td>
+                      <td style={{padding:"8px",textAlign:"right",fontWeight:"bold",color:RED}}>{fmtMoneyZero(weekWageTotal)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div style={{background:WHITE,borderRadius:10,padding:16}}>
+              <div style={{fontSize:11,color:MUTED,letterSpacing:1,marginBottom:14}}>DAILY WAGE REPORT</div>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+                <thead><tr style={{borderBottom:"2px solid "+OLIVE_LIGHT}}>{["Day","Revenue","Wages","Super","Total Cost","Labour %"].map(h=><th key={h} style={{textAlign:h==="Day"?"left":"right",padding:"6px 4px",color:MUTED,fontWeight:"normal",fontSize:11}}>{h.toUpperCase()}</th>)}</tr></thead>
+                <tbody>
+                  {dailyWageTotals.map((dt,i)=>(
+                    <tr key={dt.day} style={{borderBottom:"1px solid "+OLIVE_LIGHT,background:i===todayIdx?OLIVE_LIGHT:"transparent"}}>
+                      <td style={{padding:"8px 4px",color:i===todayIdx?OLIVE:TEXT,fontWeight:i===todayIdx?"bold":"normal"}}>{SHORT[i]}</td>
+                      <td style={{padding:"8px 4px",textAlign:"right"}}>{dt.revenue>0?fmtMoneyZero(dt.revenue):"—"}</td>
+                      <td style={{padding:"8px 4px",textAlign:"right"}}>{dt.totalWages>0?fmtMoneyZero(dt.totalWages):"—"}</td>
+                      <td style={{padding:"8px 4px",textAlign:"right",color:AMBER}}>{dt.super_>0?fmtMoneyZero(dt.super_):"—"}</td>
+                      <td style={{padding:"8px 4px",textAlign:"right",fontWeight:"bold",color:dt.total>0?RED:MUTED}}>{dt.total>0?fmtMoneyZero(dt.total):"—"}</td>
+                      <td style={{padding:"8px 4px",textAlign:"right",fontWeight:"bold",color:dt.labourPct?(parseFloat(dt.labourPct)<=30?GREEN:parseFloat(dt.labourPct)<=40?AMBER:RED):MUTED}}>{dt.labourPct?dt.labourPct+"%":"—"}</td>
+                    </tr>
+                  ))}
+                  <tr style={{borderTop:"2px solid "+OLIVE}}>
+                    <td style={{padding:"8px 4px",fontWeight:"bold",color:OLIVE}}>Total</td>
+                    <td style={{padding:"8px 4px",textAlign:"right",fontWeight:"bold"}}>{fmtMoneyZero(weekWageRevenue)}</td>
+                    <td style={{padding:"8px 4px",textAlign:"right",fontWeight:"bold"}}>{fmtMoneyZero(weekTotalWages)}</td>
+                    <td style={{padding:"8px 4px",textAlign:"right",fontWeight:"bold",color:AMBER}}>{fmtMoneyZero(weekSuper)}</td>
+                    <td style={{padding:"8px 4px",textAlign:"right",fontWeight:"bold",color:RED}}>{fmtMoneyZero(weekWageTotal)}</td>
+                    <td style={{padding:"8px 4px",textAlign:"right",fontWeight:"bold",color:weekLabourPct?(parseFloat(weekLabourPct)<=30?GREEN:parseFloat(weekLabourPct)<=40?AMBER:RED):MUTED}}>{weekLabourPct?weekLabourPct+"%":"—"}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* FOOD COST */}
+        {view==="food"&&(
           <div style={{maxWidth:900,margin:"0 auto"}}>
             <h2 style={{color:OLIVE,fontWeight:"normal",fontSize:20,marginBottom:4}}>Food Cost Calculator</h2>
             <p style={{color:MUTED,fontSize:13,marginTop:0,marginBottom:18}}>All formulas calculate live as you type.</p>
@@ -750,10 +659,10 @@ export default function App() {
                       <div style={{fontSize:16,fontWeight:"bold",color:OLIVE,marginBottom:6,paddingRight:20}}>{r.name||"Unnamed"}</div>
                       <div style={{fontSize:12,color:MUTED,marginBottom:12}}>{r.ingredients.length} ingredient{r.ingredients.length!==1?"s":""}</div>
                       <div style={{borderTop:"1px solid "+OLIVE_LIGHT,paddingTop:12,display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-                        <div><div style={{fontSize:10,color:MUTED}}>TOTAL COST</div><div style={{fontSize:13,fontWeight:"bold",color:TEXT}}>{fmtMoney(tc)}</div></div>
-                        <div><div style={{fontSize:10,color:MUTED}}>COST/SERVE</div><div style={{fontSize:13,fontWeight:"bold",color:TEXT}}>{fmtMoney(cps)}</div></div>
-                        <div><div style={{fontSize:10,color:MUTED}}>SELL PRICE</div><div style={{fontSize:13,fontWeight:"bold",color:TEXT}}>{fmtMoney(sp)}</div></div>
-                        <div><div style={{fontSize:10,color:MUTED}}>SELL EX GST</div><div style={{fontSize:13,fontWeight:"bold",color:TEXT}}>{fmtMoney(sp/1.1)}</div></div>
+                        <div><div style={{fontSize:10,color:MUTED}}>TOTAL COST</div><div style={{fontSize:13,fontWeight:"bold",color:TEXT}}>${tc.toFixed(2)}</div></div>
+                        <div><div style={{fontSize:10,color:MUTED}}>COST/SERVE</div><div style={{fontSize:13,fontWeight:"bold",color:TEXT}}>${cps.toFixed(2)}</div></div>
+                        <div><div style={{fontSize:10,color:MUTED}}>SELL PRICE</div><div style={{fontSize:13,fontWeight:"bold",color:TEXT}}>${sp.toFixed(2)}</div></div>
+                        <div><div style={{fontSize:10,color:MUTED}}>SELL EX GST</div><div style={{fontSize:13,fontWeight:"bold",color:TEXT}}>${(sp/1.1).toFixed(2)}</div></div>
                         <div><div style={{fontSize:10,color:MUTED}}>FOOD COGS %</div><div style={{fontSize:13,fontWeight:"bold",color:cogsColor(cogs)}}>{sp>0?cogs.toFixed(1)+"%":"—"}</div></div>
                         <div><div style={{fontSize:10,color:MUTED}}>GP %</div><div style={{fontSize:13,fontWeight:"bold",color:gpColor(gp)}}>{sp>0?gp.toFixed(1)+"%":"—"}</div></div>
                       </div>
@@ -763,7 +672,7 @@ export default function App() {
                 })}
                 {recipes.length===0&&(<div style={{gridColumn:"1/-1",background:WHITE,borderRadius:12,padding:40,textAlign:"center",color:MUTED}}><div style={{fontSize:40,marginBottom:12}}>🍽️</div><div style={{fontSize:15,marginBottom:6}}>No recipes yet</div><div style={{fontSize:13}}>Click New Recipe to get started.</div></div>)}
               </div>
-            ):(() => {
+            ):(()=>{
               const r=recipes[expandedRecipe]; const ri=expandedRecipe;
               const tc=r.ingredients.reduce((s,ing)=>s+(num(ing.unitCost)*num(ing.portionQty)),0);
               const portions=num(r.portionsPerRecipe)||1;
@@ -794,7 +703,7 @@ export default function App() {
                     </div>
                   </div>
                   <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(120px, 1fr))",gap:10,marginBottom:24}}>
-                    {[{label:"TOTAL COST",value:fmtMoney(tc),color:TEXT},{label:"COST PER SERVE",value:fmtMoney(cps),color:TEXT},{label:"SELL PRICE",value:fmtMoney(sp),color:TEXT},{label:"SELL EX GST",value:fmtMoney(exGst),color:TEXT},{label:"FOOD COGS %",value:sp>0?cogs.toFixed(1)+"%":"—",color:cogsColor(cogs)},{label:"GP %",value:sp>0?gp.toFixed(1)+"%":"—",color:gpColor(gp)}].map(({label,value,color})=>(
+                    {[{label:"TOTAL COST",value:"$"+tc.toFixed(2),color:TEXT},{label:"COST PER SERVE",value:"$"+cps.toFixed(2),color:TEXT},{label:"SELL PRICE",value:"$"+sp.toFixed(2),color:TEXT},{label:"SELL EX GST",value:"$"+exGst.toFixed(2),color:TEXT},{label:"FOOD COGS %",value:sp>0?cogs.toFixed(1)+"%":"—",color:cogsColor(cogs)},{label:"GP %",value:sp>0?gp.toFixed(1)+"%":"—",color:gpColor(gp)}].map(({label,value,color})=>(
                       <div key={label} style={{background:OLIVE_LIGHT,borderRadius:10,padding:"12px 14px"}}>
                         <div style={{fontSize:10,color:MUTED,letterSpacing:1,marginBottom:6}}>{label}</div>
                         <div style={{fontSize:15,fontWeight:"bold",color}}>{value}</div>
@@ -822,7 +731,7 @@ export default function App() {
                               <td style={{padding:"2px 4px"}}><input type="number" value={ing.portionQty} onChange={e=>updIng(idx,"portionQty",e.target.value)} style={{...inp(false)}} onFocus={e=>e.target.style.borderBottomColor=OLIVE_MID} onBlur={e=>e.target.style.borderBottomColor="transparent"} /></td>
                               <td style={{padding:"2px 4px"}}><input type="number" value={ing.actual} onChange={e=>updIng(idx,"actual",e.target.value)} style={{...inp(false)}} onFocus={e=>e.target.style.borderBottomColor=OLIVE_MID} onBlur={e=>e.target.style.borderBottomColor="transparent"} /></td>
                               <td style={{padding:"2px 4px"}}><input type="number" value={ing.unitCost} onChange={e=>updIng(idx,"unitCost",e.target.value)} style={{...inp(false)}} onFocus={e=>e.target.style.borderBottomColor=OLIVE_MID} onBlur={e=>e.target.style.borderBottomColor="transparent"} /></td>
-                              <td style={{padding:"2px 4px",textAlign:"right",fontWeight:"bold",color:OLIVE,paddingRight:8}}>{fmtMoney(lt)}</td>
+                              <td style={{padding:"2px 4px",textAlign:"right",fontWeight:"bold",color:OLIVE,paddingRight:8}}>${lt.toFixed(2)}</td>
                               <td style={{padding:"2px 4px",textAlign:"center"}}><button onClick={()=>delIng(idx)} style={{background:"none",border:"none",color:OLIVE_LIGHT,cursor:"pointer",fontSize:16}}>x</button></td>
                             </tr>
                           );
@@ -850,7 +759,7 @@ export default function App() {
                                 <div style={{fontSize:13,color:TEXT,fontWeight:"500"}}>{ing.name}</div>
                                 <div style={{fontSize:11,color:MUTED}}>{ing.measure} - {ing.contentsUnit}</div>
                               </div>
-                              <div style={{fontSize:13,color:OLIVE,fontWeight:"bold"}}>{fmtMoney(ing.unitCost)}<span style={{fontSize:10,color:MUTED}}>/unit</span></div>
+                              <div style={{fontSize:13,color:OLIVE,fontWeight:"bold"}}>${ing.unitCost.toFixed(4)}<span style={{fontSize:10,color:MUTED}}>/unit</span></div>
                             </div>
                           ))}
                         </div>
@@ -863,6 +772,7 @@ export default function App() {
           </div>
         )}
 
+        {/* CALENDAR */}
         {view==="calendar"&&(
           <div style={{maxWidth:700,margin:"0 auto"}}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
@@ -876,22 +786,18 @@ export default function App() {
             {calView==="month"&&(()=>{
               const year=calMonth.getFullYear();
               const month=calMonth.getMonth();
-              const firstDayOfMonth=new Date(year,month,1).getDay(); // 0=Sun, 1=Mon...
+              const firstDayOfMonth=new Date(year,month,1).getDay();
               const daysInMonth=new Date(year,month+1,0).getDate();
               const monthName=calMonth.toLocaleDateString("en-AU",{month:"long",year:"numeric"});
-              // Monday-based grid: Mon=0, Tue=1... Sun=6
-              const blanks = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1;
+              const blanks=firstDayOfMonth===0?6:firstDayOfMonth-1;
               const cells=[];
               for(let i=0;i<blanks;i++) cells.push(null);
               for(let i=1;i<=daysInMonth;i++) cells.push(i);
-
-              // Auto fetch Square data for all past days in month
               cells.filter(d=>d).forEach(d=>{
                 const dateStr=year+"-"+String(month+1).padStart(2,'0')+"-"+String(d).padStart(2,'0');
                 const dayDate=new Date(year,month,d);
                 if(dayDate<=new Date()) fetchSquareForDate(dateStr);
               });
-
               return(
                 <div>
                   <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
@@ -900,9 +806,7 @@ export default function App() {
                     <button onClick={()=>setCalMonth(new Date(year,month+1,1))} style={{background:OLIVE_LIGHT,border:"none",borderRadius:7,padding:"6px 14px",cursor:"pointer",color:OLIVE,fontFamily:"Georgia, serif"}}>→</button>
                   </div>
                   <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4,marginBottom:4}}>
-                    {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(d=>(
-                      <div key={d} style={{textAlign:"center",fontSize:11,color:MUTED,padding:"4px 0"}}>{d}</div>
-                    ))}
+                    {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(d=>(<div key={d} style={{textAlign:"center",fontSize:11,color:MUTED,padding:"4px 0"}}>{d}</div>))}
                   </div>
                   <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4}}>
                     {cells.map((d,i)=>{
@@ -913,12 +817,13 @@ export default function App() {
                       const isToday=date.toDateString()===new Date().toDateString();
                       const diaryEntry=diary[dayName];
                       const sqData=squareByDate[dateStr];
-                      const isLoading=loadingDates[dateStr];                      return(
+                      const isLoading=loadingDates[dateStr];
+                      return(
                         <div key={d} onClick={()=>{setSelected(date.getDay()===0?6:date.getDay()-1);setView("day");}}
                           style={{background:isToday?OLIVE:WHITE,borderRadius:8,padding:"6px 4px",cursor:"pointer",border:"1px solid "+(isToday?OLIVE:OLIVE_LIGHT),minHeight:70}}>
                           <div style={{fontSize:13,fontWeight:"bold",color:isToday?WHITE:TEXT,textAlign:"center"}}>{d}</div>
                           {isLoading&&<div style={{fontSize:8,color:MUTED,textAlign:"center"}}>...</div>}
-                          {sqData&&sqData.netSales>0&&<div style={{fontSize:9,color:isToday?OLIVE_LIGHT:GREEN,textAlign:"center",marginTop:2,fontWeight:"bold"}}>{fmtMoney(sqData.netSales)}</div>}
+                          {sqData&&sqData.netSales>0&&<div style={{fontSize:9,color:isToday?OLIVE_LIGHT:GREEN,textAlign:"center",marginTop:2,fontWeight:"bold"}}>${sqData.netSales.toFixed(0)}</div>}
                           {sqData&&sqData.transactions>0&&<div style={{fontSize:8,color:isToday?OLIVE_LIGHT:MUTED,textAlign:"center"}}>{sqData.transactions} txn</div>}
                           {diaryEntry&&diaryEntry.mood&&<div style={{fontSize:9,textAlign:"center"}}>{diaryEntry.mood}</div>}
                         </div>
@@ -933,23 +838,14 @@ export default function App() {
               const weekStart=new Date(calWeek);
               const day=weekStart.getDay();
               weekStart.setDate(weekStart.getDate()-(day===0?6:day-1));
-              const weekDays=Array.from({length:7},(_,i)=>{
-                const d=new Date(weekStart);
-                d.setDate(d.getDate()+i);
-                return d;
-              });
-
-              // Auto fetch Square data for week days
+              const weekDays=Array.from({length:7},(_,i)=>{const d=new Date(weekStart);d.setDate(d.getDate()+i);return d;});
               weekDays.forEach(date=>{
                 if(date<=new Date()){
-                  const dateStr=date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,'0')+"-"+String(date.getDate()).padStart(2,'0');
-                  fetchSquareForDate(dateStr);
+                  const ds=date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,'0')+"-"+String(date.getDate()).padStart(2,'0');
+                  fetchSquareForDate(ds);
                 }
               });
-
-              const weekLabel=weekStart.toLocaleDateString("en-AU",{day:"numeric",month:"short"})+" - "+
-                new Date(weekStart.getTime()+6*86400000).toLocaleDateString("en-AU",{day:"numeric",month:"short"});
-
+              const weekLabel=weekStart.toLocaleDateString("en-AU",{day:"numeric",month:"short"})+" - "+new Date(weekStart.getTime()+6*86400000).toLocaleDateString("en-AU",{day:"numeric",month:"short"});
               return(
                 <div>
                   <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
@@ -964,15 +860,13 @@ export default function App() {
                       const dateStr=date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,'0')+"-"+String(date.getDate()).padStart(2,'0');
                       const e=diary[dayName];
                       const sqData=squareByDate[dateStr];
-                      const profit=sqData?num(sqData.netSales)-num(biz[dayName].cogs):0;
                       return(
                         <div key={i} onClick={()=>{setSelected(date.getDay()===0?6:date.getDay()-1);setView("day");}}
                           style={{background:isToday?OLIVE:WHITE,borderRadius:10,padding:"12px 16px",cursor:"pointer",border:"1px solid "+(isToday?OLIVE:OLIVE_LIGHT)}}>
                           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                             <div>
                               <div style={{fontWeight:"bold",fontSize:14,color:isToday?WHITE:OLIVE}}>
-                                {date.toLocaleDateString("en-AU",{weekday:"long",day:"numeric",month:"short"})}
-                                {isToday?" · Today":""}
+                                {date.toLocaleDateString("en-AU",{weekday:"long",day:"numeric",month:"short"})}{isToday?" Today":""}
                               </div>
                               <div style={{fontSize:12,color:isToday?"#d4e0b8":MUTED,marginTop:2}}>
                                 {e.mood} {e.note?'"'+e.note.slice(0,40)+'..."':"No entry"}
@@ -980,9 +874,8 @@ export default function App() {
                               {e.tasks.length>0&&<div style={{fontSize:11,color:isToday?"#d4e0b8":MUTED,marginTop:2}}>{e.tasks.filter(t=>t.done).length}/{e.tasks.length} tasks</div>}
                             </div>
                             <div style={{textAlign:"right"}}>
-                              {sqData&&sqData.netSales>0&&<div style={{fontSize:14,fontWeight:"bold",color:isToday?WHITE:GREEN}}>{fmtMoney(sqData.netSales)}</div>}
-                              {sqData&&sqData.transactions>0&&<div style={{fontSize:11,color:isToday?"#d4e0b8":MUTED}}>{sqData.transactions} txn · avg {fmtMoney(sqData.avgSale)}</div>}
-                              {sqData&&sqData.netSales>0&&num(biz[dayName].cogs)>0&&<div style={{fontSize:11,color:isToday?"#d4e0b8":(profit>=0?GREEN:RED)}}>{profit>=0?"+":""}{fmtMoney(profit)} profit</div>}
+                              {sqData&&sqData.netSales>0&&<div style={{fontSize:14,fontWeight:"bold",color:isToday?WHITE:GREEN}}>${sqData.netSales.toFixed(2)}</div>}
+                              {sqData&&sqData.transactions>0&&<div style={{fontSize:11,color:isToday?"#d4e0b8":MUTED}}>{sqData.transactions} txn · avg ${sqData.avgSale.toFixed(2)}</div>}
                             </div>
                           </div>
                         </div>
@@ -995,6 +888,7 @@ export default function App() {
           </div>
         )}
 
+        {/* DAY */}
         {view==="day"&&(
           <div style={{maxWidth:520,margin:"0 auto"}}>
             <div style={{display:"flex",gap:6,marginBottom:20,overflowX:"auto",paddingBottom:4}}>
