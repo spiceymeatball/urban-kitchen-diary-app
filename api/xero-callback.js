@@ -43,10 +43,9 @@ export default async function handler(req, res) {
     const tenantId = tenants[0] && tenants[0].tenantId ? tenants[0].tenantId : "";
     if (!tenantId) throw new Error("No Xero organisation found");
 
-    res.setHeader("Location", "https://urban-kitchen-diary-app.vercel.app?xt=" + 
-      encodeURIComponent(tokens.access_token) + "&xi=" + encodeURIComponent(tenantId));
-    res.status(302).end();
-
+   res.setHeader("Location", "https://urban-kitchen-diary-app.vercel.app?xt=" + 
+  encodeURIComponent(tokens.access_token) + "&xi=" + encodeURIComponent(tenantId) + "&xero=connected");
+res.status(302).end();
   } catch (err) {
     res.setHeader("Location", "https://urban-kitchen-diary-app.vercel.app?xero_error=" + encodeURIComponent(err.message));
     res.status(302).end();
