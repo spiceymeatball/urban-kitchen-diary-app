@@ -219,7 +219,8 @@ export default function App() {
       const data = await res.json();
       if(data.error) throw new Error(data.error);
       setSquareData(data);
-      setBiz(p=>({...p,[DAYS[todayIdx]]:{...p[DAYS[todayIdx]],revenue:data.revenue.toFixed(2),sales:data.transactions}}));
+      // Auto fill today with net sales
+      setBiz(p=>({...p,[DAYS[todayIdx]]:{...p[DAYS[todayIdx]],revenue:(data.netSales||data.grossSales||0).toFixed(2),sales:data.transactions}}));
     } catch(e) { setSquareError("Could not connect to Square: "+e.message); }
     setSquareLoading(false);
   };
@@ -385,7 +386,9 @@ export default function App() {
               {squareData?(
                 <div>
                   <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:10}}>
-                    <SC label="REVENUE" value={fmtMoney(squareData.revenue)} color={GREEN} />
+                    <SC label="GROSS SALES" value={fmtMoney(squareData.grossSales||squareData.revenue)} color={GREEN} />
+                    <SC label="REFUNDS" value={fmtMoney(squareData.totalRefunds||0)} color={squareData.totalRefunds>0?RED:MUTED} />
+                    <SC label="NET SALES" value={fmtMoney(squareData.netSales||squareData.revenue)} color={GREEN} />
                     <SC label="TRANSACTIONS" value={squareData.transactions} />
                     <SC label="AVG SALE" value={fmtMoney(squareData.avgSale)} />
                   </div>
