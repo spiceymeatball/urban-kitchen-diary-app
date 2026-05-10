@@ -391,15 +391,15 @@ export default function App() {
                   {squareData.paymentTypes&&Object.keys(squareData.paymentTypes).length>0&&(
                     <div style={{fontSize:12,color:MUTED,marginBottom:10}}>Payment types: {Object.entries(squareData.paymentTypes).map(([k,v])=>k+": "+fmtMoney(v)).join(" | ")}</div>
                   )}
-                  {squareData.hourly&&Object.keys(squareData.hourly).length>0&&(
+                  {squareData&&squareData.hourly&&Object.keys(squareData.hourly).length>0&&(
                     <div style={{marginTop:10}}>
                       <div style={{fontSize:11,color:MUTED,letterSpacing:1,marginBottom:8}}>HOURLY BREAKDOWN</div>
                       <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
                         {Object.entries(squareData.hourly).sort((a,b)=>parseInt(a[0])-parseInt(b[0])).map(([hour,data])=>(
                           <div key={hour} style={{background:OLIVE_LIGHT,borderRadius:6,padding:"6px 8px",minWidth:60,textAlign:"center"}}>
                             <div style={{fontSize:10,color:MUTED}}>{hour}</div>
-                            <div style={{fontSize:12,fontWeight:"bold",color:OLIVE}}>{fmtMoney(data.revenue)}</div>
-                            <div style={{fontSize:10,color:MUTED}}>{data.transactions} txn</div>
+                            <div style={{fontSize:12,fontWeight:"bold",color:OLIVE}}>{fmtMoney(data&&data.revenue?data.revenue:0)}</div>
+                            <div style={{fontSize:10,color:MUTED}}>{data&&data.transactions?data.transactions:0} txn</div>
                           </div>
                         ))}
                       </div>
