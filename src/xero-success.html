@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head><title>Connecting Xero...</title></head>
+<body>
+<p>Connecting to Xero, please wait...</p>
+<script>
+fetch('/api/xero-token')
+  .then(r => r.json())
+  .then(data => {
+    if (data.token && data.tenant) {
+      sessionStorage.setItem('xero_token', data.token);
+      sessionStorage.setItem('xero_tenant', data.tenant);
+      window.location.href = '/';
+    } else {
+      window.location.href = '/?xero_error=no_token';
+    }
+  })
+  .catch(() => window.location.href = '/?xero_error=fetch_failed');
+</script>
+</body>
+</html>
