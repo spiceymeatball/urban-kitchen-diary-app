@@ -7,19 +7,21 @@ export default async function handler(req, res) {
   if (!token) return res.status(500).json({ error: 'No Square token found' });
 
   try {
+    // Use provided date or yesterday
     const now = new Date();
-    const yesterday = new Date(now);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const dateStr = yesterday.toISOString().split('T')[0];
+    const targetDate = req.query.date || (() => {
+      const d = new Date(now);
+      d.setDate(d.getDate() - 1);
+      return d.toISOString().split('T')[0];
+    })();
 
-    // Fetch ALL payments using pagination
     let allPayments = [];
     let cursor = null;
 
     do {
       const url = "https://connect.squareup.com/v2/payments?location_id=" + locationId +
-        "&begin_time=" + dateStr + "T00:00:00.000Z" +
-        "&end_time=" + dateStr + "T23:59:59.999Z" +
+        "&begin_time=" + targetDate + "T00:00:00.000Z" +
+        "&end_time=" + targetDate + "T23:59:59.999Z" +
         "&status=COMPLETED&limit=100" +
         (cursor ? "&cursor=" + cursor : "");
 
@@ -35,53 +37,39 @@ export default async function handler(req, res) {
       const data = await response.json();
       if (data.errors) return res.status(400).json({ error: data.errors[0].detail });
 
-      const payments = data.payments || [];
-      allPayments = allPayments.concat(payments);
+      allPayments = allPayments.concat(data.payments || []);
       cursor = data.cursor || null;
-
     } while (cursor);
 
-    // Gross sales = total before refunds/discounts
     const grossSales = allPayments.reduce((s, p) => s + (p.amount_money?.amount || 0), 0) / 100;
-    
-    // Refunds
     const totalRefunds = allPayments.reduce((s, p) => s + (p.refunded_money?.amount || 0), 0) / 100;
-    
-    // Net sales = gross minus refunds
     const netSales = grossSales - totalRefunds;
-    
-    // Transaction count
     const transactions = allPayments.length;
-    
-    // Average sale based on net
     const avgSale = transactions > 0 ? netSales / transactions : 0;
 
-    // Payment types breakdown
     const paymentTypes = {};
     allPayments.forEach(p => {
       const type = p.source_type || 'OTHER';
       paymentTypes[type] = (paymentTypes[type] || 0) + (p.amount_money?.amount || 0) / 100;
     });
 
-    // Hourly breakdown
+    // Hourly breakdown with clock times
     const hourly = {};
     allPayments.forEach(p => {
-      const hour = new Date(p.created_at).getHours();
-      const label = hour + ":00";
-      if (!hourly[label]) hourly[label] = { revenue: 0, transactions: 0 };
-      hourly[label].revenue += (p.amount_money?.amount || 0) / 100;
-      hourly[label].transactions += 1;
+      const date = new Date(p.created_at);
+      const hour = date.getHours();
+      const ampm = hour >= 12 ? 'pm' : 'am';
+      const hour12 = hour % 12 || 12;
+      const label = hour12 + ":00" + ampm;
+      const sortKey = hour;
+      if (!hourly[sortKey]) hourly[sortKey] = { label, revenue: 0, transactions: 0 };
+      hourly[sortKey].revenue += (p.amount_money?.amount || 0) / 100;
+      hourly[sortKey].transactions += 1;
     });
 
     res.status(200).json({ 
-      grossSales,
-      netSales,
-      totalRefunds,
-      transactions, 
-      avgSale, 
-      paymentTypes,
-      hourly,
-      date: dateStr
+      grossSales, netSales, totalRefunds, transactions, avgSale,
+      paymentTypes, hourly, date: targetDate
     });
 
   } catch (err) {
