@@ -175,6 +175,7 @@ export default function App() {
   const [calView, setCalView] = useState("month"); // month | week
   const [calMonth, setCalMonth] = useState(new Date());
   const [calWeek, setCalWeek] = useState(new Date());
+  const bizFileRef = useRef();
   const importRef = useRef();
 
   useEffect(() => {
