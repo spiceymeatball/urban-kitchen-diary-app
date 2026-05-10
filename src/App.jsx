@@ -675,8 +675,7 @@ export default function App() {
                       const isToday=date.toDateString()===new Date().toDateString();
                       const diaryEntry=diary[dayName];
                       const sqData=squareByDate[dateStr];
-                      const isLoading=loadingDates[dateStr];
-                      return(
+                      const isLoading=loadingDates[dateStr];                      return(
                         <div key={d} onClick={()=>{setSelected(date.getDay()===0?6:date.getDay()-1);setView("day");}}
                           style={{background:isToday?OLIVE:WHITE,borderRadius:8,padding:"6px 4px",cursor:"pointer",border:"1px solid "+(isToday?OLIVE:OLIVE_LIGHT),minHeight:70}}>
                           <div style={{fontSize:13,fontWeight:"bold",color:isToday?WHITE:TEXT,textAlign:"center"}}>{d}</div>
