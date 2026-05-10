@@ -234,17 +234,29 @@ export default function App() {
     if(!loaded) return;
     fetchSquareData();
     if(xeroConnected) {
-      // Fetch token from server
-      fetch("/api/xero-token")
-        .then(r=>r.json())
-        .then(data=>{
-          if(data.token && data.tenant) {
-            setXeroToken(data.token);
-            setXeroTenant(data.tenant);
-            fetchXeroData(data.token, data.tenant);
-          }
-        })
-        .catch(e=>setXeroError("Could not retrieve Xero token"));
+      // Poll for token up to 5 times with 1 second delay
+      let attempts = 0;
+      const poll = () => {
+        attempts++;
+        fetch("/api/xero-token")
+          .then(r=>r.json())
+          .then(data=>{
+            if(data.token && data.tenant) {
+              setXeroToken(data.token);
+              setXeroTenant(data.tenant);
+              fetchXeroData(data.token, data.tenant);
+            } else if(attempts < 5) {
+              setTimeout(poll, 1000);
+            } else {
+              setXeroError("Could not retrieve Xero token. Please try again.");
+            }
+          })
+          .catch(e=>{
+            if(attempts < 5) setTimeout(poll, 1000);
+            else setXeroError("Could not connect to Xero.");
+          });
+      };
+      setTimeout(poll, 500);
     } else if(xeroErrorFromUrl) {
       setXeroError("Xero error: "+decodeURIComponent(xeroErrorFromUrl));
     }
