@@ -5,7 +5,7 @@ export default function handler(req, res) {
   if (!clientId) return res.status(500).json({ error: "Missing XERO_CLIENT_ID" });
   if (!redirectUri) return res.status(500).json({ error: "Missing XERO_REDIRECT_URI" });
   
-  const scope = "openid profile email offline_access accounting.invoices.read accounting.contacts.read accounting.settings.read accounting.budgets.read";
+  const scope = "openid profile email offline_access accounting.invoices.read accounting.contacts.read accounting.settings.read";
   
   const params = new URLSearchParams({
     response_type: "code",
