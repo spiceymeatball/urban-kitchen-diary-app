@@ -639,15 +639,16 @@ export default function App() {
             {calView==="month"&&(()=>{
               const year=calMonth.getFullYear();
               const month=calMonth.getMonth();
-              const firstDay=new Date(year,month,1).getDay();
+              const firstDayOfMonth=new Date(year,month,1).getDay(); // 0=Sun, 1=Mon...
               const daysInMonth=new Date(year,month+1,0).getDate();
               const monthName=calMonth.toLocaleDateString("en-AU",{month:"long",year:"numeric"});
-              const blanks=firstDay===0?6:firstDay-1;
+              // Monday-based grid: Mon=0, Tue=1... Sun=6
+              const blanks = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1;
               const cells=[];
               for(let i=0;i<blanks;i++) cells.push(null);
               for(let i=1;i<=daysInMonth;i++) cells.push(i);
 
-              // Auto fetch Square data for all days in month
+              // Auto fetch Square data for all past days in month
               cells.filter(d=>d).forEach(d=>{
                 const dateStr=year+"-"+String(month+1).padStart(2,'0')+"-"+String(d).padStart(2,'0');
                 const dayDate=new Date(year,month,d);
@@ -700,6 +701,15 @@ export default function App() {
                 d.setDate(d.getDate()+i);
                 return d;
               });
+
+              // Auto fetch Square data for week days
+              weekDays.forEach(date=>{
+                if(date<=new Date()){
+                  const dateStr=date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,'0')+"-"+String(date.getDate()).padStart(2,'0');
+                  fetchSquareForDate(dateStr);
+                }
+              });
+
               const weekLabel=weekStart.toLocaleDateString("en-AU",{day:"numeric",month:"short"})+" - "+
                 new Date(weekStart.getTime()+6*86400000).toLocaleDateString("en-AU",{day:"numeric",month:"short"});
 
@@ -714,9 +724,10 @@ export default function App() {
                     {weekDays.map((date,i)=>{
                       const dayName=DAYS[date.getDay()===0?6:date.getDay()-1];
                       const isToday=date.toDateString()===new Date().toDateString();
+                      const dateStr=date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,'0')+"-"+String(date.getDate()).padStart(2,'0');
                       const e=diary[dayName];
-                      const b=biz[dayName];
-                      const profit=num(b.revenue)-num(b.cogs);
+                      const sqData=squareByDate[dateStr];
+                      const profit=sqData?num(sqData.netSales)-num(biz[dayName].cogs):0;
                       return(
                         <div key={i} onClick={()=>{setSelected(date.getDay()===0?6:date.getDay()-1);setView("day");}}
                           style={{background:isToday?OLIVE:WHITE,borderRadius:10,padding:"12px 16px",cursor:"pointer",border:"1px solid "+(isToday?OLIVE:OLIVE_LIGHT)}}>
@@ -732,8 +743,9 @@ export default function App() {
                               {e.tasks.length>0&&<div style={{fontSize:11,color:isToday?"#d4e0b8":MUTED,marginTop:2}}>{e.tasks.filter(t=>t.done).length}/{e.tasks.length} tasks</div>}
                             </div>
                             <div style={{textAlign:"right"}}>
-                              {num(b.revenue)>0&&<div style={{fontSize:14,fontWeight:"bold",color:isToday?WHITE:GREEN}}>{fmtMoney(b.revenue)}</div>}
-                              {num(b.revenue)>0&&<div style={{fontSize:11,color:isToday?"#d4e0b8":(profit>=0?GREEN:RED)}}>{profit>=0?"+":""}{fmtMoney(profit)}</div>}
+                              {sqData&&sqData.netSales>0&&<div style={{fontSize:14,fontWeight:"bold",color:isToday?WHITE:GREEN}}>{fmtMoney(sqData.netSales)}</div>}
+                              {sqData&&sqData.transactions>0&&<div style={{fontSize:11,color:isToday?"#d4e0b8":MUTED}}>{sqData.transactions} txn · avg {fmtMoney(sqData.avgSale)}</div>}
+                              {sqData&&sqData.netSales>0&&num(biz[dayName].cogs)>0&&<div style={{fontSize:11,color:isToday?"#d4e0b8":(profit>=0?GREEN:RED)}}>{profit>=0?"+":""}{fmtMoney(profit)} profit</div>}
                             </div>
                           </div>
                         </div>
