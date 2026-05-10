@@ -7,7 +7,7 @@ export default async function handler(req, res) {
   if (!token) return res.status(500).json({ error: 'No Square token found' });
 
   try {
-    const AWST_OFFSET = 10 * 60 * 60 * 1000; // UTC+8 in ms
+    const AWST_OFFSET = 8 * 60 * 60 * 1000; // UTC+8 in ms
 
     // Use provided date or yesterday in AEST
     let targetDate = req.query.date;
