@@ -41,10 +41,20 @@ export default async function handler(req, res) {
 
     } while (cursor);
 
-    // Calculate totals
-    const revenue = allPayments.reduce((s, p) => s + (p.amount_money?.amount || 0), 0) / 100;
+    // Gross sales = total before refunds/discounts
+    const grossSales = allPayments.reduce((s, p) => s + (p.amount_money?.amount || 0), 0) / 100;
+    
+    // Refunds
+    const totalRefunds = allPayments.reduce((s, p) => s + (p.refunded_money?.amount || 0), 0) / 100;
+    
+    // Net sales = gross minus refunds
+    const netSales = grossSales - totalRefunds;
+    
+    // Transaction count
     const transactions = allPayments.length;
-    const avgSale = transactions > 0 ? revenue / transactions : 0;
+    
+    // Average sale based on net
+    const avgSale = transactions > 0 ? netSales / transactions : 0;
 
     // Payment types breakdown
     const paymentTypes = {};
@@ -63,20 +73,14 @@ export default async function handler(req, res) {
       hourly[label].transactions += 1;
     });
 
-    // Category breakdown (by item name from order)
-    const categories = {};
-    allPayments.forEach(p => {
-      const note = p.note || p.order_id || "Sale";
-      categories[note] = (categories[note] || 0) + (p.amount_money?.amount || 0) / 100;
-    });
-
     res.status(200).json({ 
-      revenue, 
+      grossSales,
+      netSales,
+      totalRefunds,
       transactions, 
       avgSale, 
       paymentTypes,
       hourly,
-      categories,
       date: dateStr
     });
 
