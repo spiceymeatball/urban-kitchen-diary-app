@@ -7,21 +7,27 @@ export default async function handler(req, res) {
   if (!token) return res.status(500).json({ error: 'No Square token found' });
 
   try {
-    // Use provided date or yesterday
-    const now = new Date();
-    const targetDate = req.query.date || (() => {
-      const d = new Date(now);
-      d.setDate(d.getDate() - 1);
-      return d.toISOString().split('T')[0];
-    })();
+    const AWST_OFFSET = 10 * 60 * 60 * 1000; // UTC+8 in ms
+
+    // Use provided date or yesterday in AEST
+    let targetDate = req.query.date;
+    if (!targetDate) {
+      const nowAEST = new Date(Date.now() + AWST_OFFSET);
+      nowAEST.setUTCDate(nowAEST.getUTCDate() - 1);
+      targetDate = nowAEST.toISOString().split('T')[0];
+    }
+
+    // Convert AEST date to UTC range for Square API
+    const beginTimeUTC = new Date(targetDate + "T00:00:00.000+08:00").toISOString();
+    const endTimeUTC = new Date(targetDate + "T23:59:59.999+08:00").toISOString();
 
     let allPayments = [];
     let cursor = null;
 
     do {
       const url = "https://connect.squareup.com/v2/payments?location_id=" + locationId +
-        "&begin_time=" + targetDate + "T00:00:00.000Z" +
-        "&end_time=" + targetDate + "T23:59:59.999Z" +
+        "&begin_time=" + encodeURIComponent(beginTimeUTC) +
+        "&end_time=" + encodeURIComponent(endTimeUTC) +
         "&status=COMPLETED&limit=100" +
         (cursor ? "&cursor=" + cursor : "");
 
@@ -53,18 +59,18 @@ export default async function handler(req, res) {
       paymentTypes[type] = (paymentTypes[type] || 0) + (p.amount_money?.amount || 0) / 100;
     });
 
-    // Hourly breakdown with clock times
+    // Hourly breakdown in AEST
     const hourly = {};
     allPayments.forEach(p => {
-      const date = new Date(p.created_at);
-      const hour = date.getHours();
+      const utcDate = new Date(p.created_at);
+      const aestDate = new Date(utcDate.getTime() + AWST_OFFSET);
+      const hour = aestDate.getUTCHours();
       const ampm = hour >= 12 ? 'pm' : 'am';
       const hour12 = hour % 12 || 12;
       const label = hour12 + ":00" + ampm;
-      const sortKey = hour;
-      if (!hourly[sortKey]) hourly[sortKey] = { label, revenue: 0, transactions: 0 };
-      hourly[sortKey].revenue += (p.amount_money?.amount || 0) / 100;
-      hourly[sortKey].transactions += 1;
+      if (!hourly[hour]) hourly[hour] = { label, revenue: 0, transactions: 0 };
+      hourly[hour].revenue += (p.amount_money?.amount || 0) / 100;
+      hourly[hour].transactions += 1;
     });
 
     res.status(200).json({ 
