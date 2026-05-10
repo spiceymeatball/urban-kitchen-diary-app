@@ -177,15 +177,31 @@ export default function App() {
   const [calView, setCalView] = useState("month"); // month | week
   const [calMonth, setCalMonth] = useState(new Date());
   const [calWeek, setCalWeek] = useState(new Date());
-  const bizFileRef = useRef();
-  const importRef = useRef();
+  const [wages, setWagesRaw] = useState({
+    employees: [
+      {id:"1",name:"Paul",rate:43.10},
+      {id:"2",name:"Karen",rate:39.50},
+      {id:"3",name:"Laurane",rate:35.15},
+      {id:"4",name:"Jess",rate:32.98},
+      {id:"5",name:"Giacomo",rate:35.15},
+      {id:"6",name:"Conor",rate:35.15},
+      {id:"7",name:"Vera",rate:35.15},
+      {id:"8",name:"Aleisha",rate:35.15},
+      {id:"9",name:"Ryan",rate:30.00},
+      {id:"10",name:"Heidi",rate:35.15},
+    ],
+    timesheets: DAYS.reduce((a,d)=>({...a,[d]:{}}),{})
+  });
+
+  const setWages = fn => setWagesRaw(p=>{const n=typeof fn==="function"?fn(p):fn; saveData("uk_wages",n).then(showSaved); return n;});
 
   useEffect(() => {
     (async () => {
       const d = await loadData(SK.diary, initDiary());
       const b = await loadData(SK.biz, initBiz());
       const r = await loadData(SK.recipes, []);
-      setDiaryRaw(d); setBizRaw(b); setRecipesRaw(r);
+      const w = await loadData("uk_wages", {employees:[],timesheets:DAYS.reduce((a,d)=>({...a,[d]:{}}),{})});
+      setDiaryRaw(d); setBizRaw(b); setRecipesRaw(r); setWagesRaw(w);
       setLoaded(true);
     })();
   }, []);
@@ -301,7 +317,7 @@ export default function App() {
     reader.readAsText(file); e.target.value="";
   };
 
-  const navItems=[{id:"today",label:"Today",icon:"☀️"},{id:"business",label:"Business",icon:"📊"},{id:"food",label:"Food Cost",icon:"🍽️"},{id:"calendar",label:"Calendar",icon:"📅"},{id:"day",label:"Day",icon:"📝"}];
+  const navItems=[{id:"today",label:"Today",icon:"☀️"},{id:"business",label:"Business",icon:"📊"},{id:"wages",label:"Wages",icon:"💰"},{id:"food",label:"Food Cost",icon:"🍽️"},{id:"calendar",label:"Calendar",icon:"📅"},{id:"day",label:"Day",icon:"📝"}];
 
   const SC = ({label,value,color}) => (
     <div style={{background:WHITE,borderRadius:10,padding:"14px 16px",flex:1,minWidth:90}}>
@@ -489,7 +505,228 @@ export default function App() {
           </div>
         )}
 
-        {view==="food"&&(
+        {view==="wages"&&(()=>{
+          const SUPER_RATE = 0.12;
+
+          // Calculate daily wage totals
+          const dailyTotals = DAYS.map(d => {
+            let totalWages = 0;
+            wages.employees.forEach(emp => {
+              const hours = getHours(d, emp.id);
+              totalWages += hours * num(emp.rate);
+            });
+            const super_ = totalWages * SUPER_RATE;
+            const total = totalWages + super_;
+            const sqData = squareByDate[Object.keys(squareByDate).find(k => {
+              const date = new Date(k);
+              return DAYS[date.getDay()===0?6:date.getDay()-1] === d;
+            }) || ""] || null;
+            const revenue = sqData ? sqData.netSales : num(biz[d].revenue);
+            const labourPct = revenue > 0 ? (total / revenue * 100).toFixed(1) : null;
+            return { day: d, totalWages, super_, total, revenue, labourPct };
+          });
+
+          const weekTotalWages = dailyTotals.reduce((s,d)=>s+d.totalWages,0);
+          const weekSuper = dailyTotals.reduce((s,d)=>s+d.super_,0);
+          const weekTotal = dailyTotals.reduce((s,d)=>s+d.total,0);
+          const weekRevenue = dailyTotals.reduce((s,d)=>s+d.revenue,0);
+          const weekLabourPct = weekRevenue > 0 ? (weekTotal/weekRevenue*100).toFixed(1) : null;
+
+          const updateShift = (day, empId, field, val) => setWages(p=>({
+            ...p, timesheets:{...p.timesheets,[day]:{
+              ...p.timesheets[day],
+              [empId]:{...(p.timesheets[day]?.[empId]||{}),[field]:val}
+            }}
+          }));
+
+          const getHours = (day, empId) => {
+            const shift = wages.timesheets[day]?.[empId] || {};
+            const code = shift.code || "";
+            if(["O","S","D"].includes(code)) return 0;
+            return num(shift.hours || 0);
+          };
+
+          const addEmployee = () => {
+            if(!newEmpName.trim()||!newEmpRate) return;
+            const emp = {id: Date.now().toString(), name: newEmpName.trim(), rate: parseFloat(newEmpRate)};
+            setWages(p=>({...p, employees:[...p.employees, emp]}));
+            setNewEmpName(""); setNewEmpRate("");
+          };
+
+          const removeEmployee = id => setWages(p=>({...p, employees:p.employees.filter(e=>e.id!==id)}));
+          const updateRate = (id, val) => setWages(p=>({...p, employees:p.employees.map(e=>e.id===id?{...e,rate:parseFloat(val)||0}:e)}));
+
+          return (
+            <div style={{maxWidth:700,margin:"0 auto"}}>
+              <h2 style={{color:OLIVE,fontWeight:"normal",fontSize:20,marginBottom:4}}>Wages</h2>
+              <p style={{color:MUTED,fontSize:13,marginTop:0,marginBottom:20}}>Track employee hours, wages and superannuation (12%).</p>
+
+              {/* Weekly summary */}
+              <div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap"}}>
+                <SC label="WEEK WAGES" value={fmtMoney(weekTotalWages)} />
+                <SC label="WEEK SUPER" value={fmtMoney(weekSuper)} color={AMBER} />
+                <SC label="TOTAL COST" value={fmtMoney(weekTotal)} color={RED} />
+                <SC label="LABOUR %" value={weekLabourPct?weekLabourPct+"%":"—"} color={weekLabourPct?(parseFloat(weekLabourPct)<=30?GREEN:parseFloat(weekLabourPct)<=40?AMBER:RED):MUTED} />
+              </div>
+
+              {/* Employee list */}
+              <div style={{background:WHITE,borderRadius:10,padding:16,marginBottom:18}}>
+                <div style={{fontSize:11,color:MUTED,letterSpacing:1,marginBottom:14}}>EMPLOYEES</div>
+                {wages.employees.map(emp=>(
+                  <div key={emp.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:"1px solid "+OLIVE_LIGHT}}>
+                    <div style={{flex:1,fontSize:14,color:TEXT,fontWeight:"500"}}>{emp.name}</div>
+                    <div style={{fontSize:12,color:MUTED}}>$</div>
+                    <input type="number" value={emp.rate} onChange={e=>updateRate(emp.id,e.target.value)}
+                      style={{width:70,padding:"4px 8px",borderRadius:6,border:"1px solid "+OLIVE_LIGHT,background:OLIVE_LIGHT,fontFamily:"Georgia, serif",fontSize:13,color:TEXT,outline:"none"}} />
+                    <div style={{fontSize:12,color:MUTED}}>/hr</div>
+                    <button onClick={()=>removeEmployee(emp.id)} style={{background:"none",border:"none",color:OLIVE_LIGHT,cursor:"pointer",fontSize:18}}>×</button>
+                  </div>
+                ))}
+                {wages.employees.length===0&&<div style={{color:MUTED,fontSize:13,marginBottom:12}}>No employees yet. Add one below.</div>}
+                <div style={{display:"flex",gap:8,marginTop:14}}>
+                  <input value={newEmpName} onChange={e=>setNewEmpName(e.target.value)} placeholder="Employee name"
+                    style={{flex:2,padding:"8px 12px",borderRadius:7,border:"1px solid "+OLIVE_LIGHT,background:OLIVE_LIGHT,fontFamily:"Georgia, serif",fontSize:13,color:TEXT,outline:"none"}} />
+                  <div style={{position:"relative",flex:1}}>
+                    <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:MUTED,fontSize:13}}>$</span>
+                    <input type="number" value={newEmpRate} onChange={e=>setNewEmpRate(e.target.value)} placeholder="Hourly rate"
+                      style={{width:"100%",padding:"8px 8px 8px 22px",borderRadius:7,border:"1px solid "+OLIVE_LIGHT,background:OLIVE_LIGHT,fontFamily:"Georgia, serif",fontSize:13,color:TEXT,outline:"none",boxSizing:"border-box"}} />
+                  </div>
+                  <button onClick={addEmployee} style={{background:OLIVE,color:WHITE,border:"none",borderRadius:7,padding:"8px 16px",cursor:"pointer",fontSize:13}}>Add</button>
+                </div>
+              </div>
+
+              {wages.employees.length > 0 && (
+                <div style={{background:WHITE,borderRadius:10,padding:16,marginBottom:18}}>
+                  <div style={{fontSize:11,color:MUTED,letterSpacing:1,marginBottom:6}}>WEEKLY TIMESHEET</div>
+                  <div style={{fontSize:11,color:MUTED,marginBottom:14}}>Codes: O=Off · S=Sick · E=Early · D=Day Off</div>
+                  <div style={{overflowX:"auto"}}>
+                    <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                      <thead>
+                        <tr style={{borderBottom:"2px solid "+OLIVE_LIGHT}}>
+                          <th style={{textAlign:"left",padding:"6px 8px",color:MUTED,fontWeight:"normal",fontSize:11,minWidth:80}}>EMPLOYEE</th>
+                          {DAYS.map((d,i)=>(
+                            <th key={d} style={{textAlign:"center",padding:"6px 4px",color:i===todayIdx?OLIVE:MUTED,fontWeight:i===todayIdx?"bold":"normal",fontSize:11,minWidth:80}}>
+                              {SHORT[i]}<br/>
+                              <span style={{fontSize:9,fontWeight:"normal"}}>{dailyTotals[i].totalWages>0?fmtMoney(dailyTotals[i].total):""}</span>
+                            </th>
+                          ))}
+                          <th style={{textAlign:"right",padding:"6px 8px",color:MUTED,fontWeight:"normal",fontSize:11}}>HRS</th>
+                          <th style={{textAlign:"right",padding:"6px 8px",color:MUTED,fontWeight:"normal",fontSize:11}}>WAGES</th>
+                          <th style={{textAlign:"right",padding:"6px 8px",color:MUTED,fontWeight:"normal",fontSize:11}}>SUPER</th>
+                          <th style={{textAlign:"right",padding:"6px 8px",color:MUTED,fontWeight:"normal",fontSize:11}}>TOTAL</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {wages.employees.map((emp,ei)=>{
+                          const totalHrs = DAYS.reduce((s,d)=>s+getHours(d,emp.id),0);
+                          const totalWages = totalHrs * num(emp.rate);
+                          const super_ = totalWages * SUPER_RATE;
+                          return(
+                            <tr key={emp.id} style={{borderBottom:"1px solid "+OLIVE_LIGHT,background:ei%2===0?"transparent":"#f9fbf5"}}>
+                              <td style={{padding:"6px 8px"}}>
+                                <div style={{fontSize:13,color:TEXT,fontWeight:"500"}}>{emp.name}</div>
+                                <div style={{display:"flex",alignItems:"center",gap:4,marginTop:2}}>
+                                  <span style={{fontSize:10,color:MUTED}}>$</span>
+                                  <input type="number" value={emp.rate} onChange={e=>updateRate(emp.id,e.target.value)}
+                                    style={{width:45,padding:"2px 4px",borderRadius:5,border:"1px solid "+OLIVE_LIGHT,background:"transparent",fontFamily:"Georgia, serif",fontSize:10,color:MUTED,outline:"none"}} />
+                                  <span style={{fontSize:10,color:MUTED}}>/hr</span>
+                                </div>
+                              </td>
+                              {DAYS.map((d,di)=>{
+                                const shift = wages.timesheets[d]?.[emp.id] || {};
+                                const code = shift.code || "";
+                                const hours = shift.hours || "";
+                                const start = shift.start || "";
+                                const isCode = ["O","S","E","D"].includes(code);
+                                return(
+                                  <td key={d} style={{padding:"4px",textAlign:"center",background:di===todayIdx?OLIVE_LIGHT+"55":"transparent"}}>
+                                    {isCode?(
+                                      <div style={{display:"flex",flexDirection:"column",gap:2,alignItems:"center"}}>
+                                        <div style={{background:code==="S"?RED:code==="E"?"#9b59b6":MUTED,color:WHITE,borderRadius:4,padding:"2px 6px",fontSize:11,fontWeight:"bold"}}>{code}</div>
+                                        <button onClick={()=>updateShift(d,emp.id,"code","")} style={{fontSize:9,color:MUTED,background:"none",border:"none",cursor:"pointer"}}>clear</button>
+                                      </div>
+                                    ):(
+                                      <div style={{display:"flex",flexDirection:"column",gap:2}}>
+                                        <input value={start} onChange={e=>updateShift(d,emp.id,"start",e.target.value)}
+                                          placeholder="start" style={{width:50,textAlign:"center",padding:"2px",borderRadius:4,border:"1px solid "+OLIVE_LIGHT,fontFamily:"Georgia, serif",fontSize:10,color:TEXT,outline:"none"}} />
+                                        <input type="number" min="0" max="24" step="0.5" value={hours}
+                                          onChange={e=>updateShift(d,emp.id,"hours",e.target.value)}
+                                          placeholder="hrs" style={{width:50,textAlign:"center",padding:"2px",borderRadius:4,border:"1px solid "+OLIVE_LIGHT,fontFamily:"Georgia, serif",fontSize:11,color:TEXT,outline:"none"}} />
+                                        <div style={{display:"flex",gap:2,justifyContent:"center"}}>
+                                          {["O","S","D"].map(c=>(
+                                            <button key={c} onClick={()=>updateShift(d,emp.id,"code",c)}
+                                              style={{fontSize:9,padding:"1px 4px",borderRadius:3,border:"1px solid "+OLIVE_LIGHT,background:OLIVE_LIGHT,cursor:"pointer",color:MUTED,fontFamily:"Georgia, serif"}}>{c}</button>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </td>
+                                );
+                              })}
+                              <td style={{padding:"8px",textAlign:"right",fontWeight:"bold",color:TEXT}}>{totalHrs.toFixed(1)}</td>
+                              <td style={{padding:"8px",textAlign:"right",color:TEXT}}>{fmtMoney(totalWages)}</td>
+                              <td style={{padding:"8px",textAlign:"right",color:AMBER}}>{fmtMoney(super_)}</td>
+                              <td style={{padding:"8px",textAlign:"right",fontWeight:"bold",color:RED}}>{fmtMoney(totalWages+super_)}</td>
+                            </tr>
+                          );
+                        })}
+                        <tr style={{borderTop:"2px solid "+OLIVE,background:OLIVE_LIGHT}}>
+                          <td style={{padding:"8px",fontWeight:"bold",color:OLIVE,fontSize:12}}>TOTALS</td>
+                          {dailyTotals.map((dt,i)=>(
+                            <td key={i} style={{padding:"6px 4px",textAlign:"center"}}>
+                              {dt.total>0&&<div style={{fontSize:11,fontWeight:"bold",color:RED}}>{fmtMoney(dt.total)}</div>}
+                              {dt.labourPct&&<div style={{fontSize:10,color:parseFloat(dt.labourPct)<=30?GREEN:parseFloat(dt.labourPct)<=40?AMBER:RED}}>{dt.labourPct}%</div>}
+                            </td>
+                          ))}
+                          <td style={{padding:"8px",textAlign:"right",fontWeight:"bold",color:OLIVE}}>{wages.employees.reduce((s,emp)=>s+DAYS.reduce((ss,d)=>ss+getHours(d,emp.id),0),0).toFixed(1)}</td>
+                          <td style={{padding:"8px",textAlign:"right",fontWeight:"bold"}}>{fmtMoney(weekTotalWages)}</td>
+                          <td style={{padding:"8px",textAlign:"right",fontWeight:"bold",color:AMBER}}>{fmtMoney(weekSuper)}</td>
+                          <td style={{padding:"8px",textAlign:"right",fontWeight:"bold",color:RED}}>{fmtMoney(weekTotal)}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Daily wage report */}
+              {wages.employees.length > 0 && (
+                <div style={{background:WHITE,borderRadius:10,padding:16}}>
+                  <div style={{fontSize:11,color:MUTED,letterSpacing:1,marginBottom:14}}>DAILY WAGE REPORT</div>
+                  <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+                    <thead>
+                      <tr style={{borderBottom:"2px solid "+OLIVE_LIGHT}}>
+                        {["Day","Revenue","Wages","Super","Total Cost","Labour %"].map(h=>(
+                          <th key={h} style={{textAlign:h==="Day"?"left":"right",padding:"6px 4px",color:MUTED,fontWeight:"normal",fontSize:11}}>{h.toUpperCase()}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dailyTotals.map((dt,i)=>(
+                        <tr key={dt.day} style={{borderBottom:"1px solid "+OLIVE_LIGHT,background:i===todayIdx?OLIVE_LIGHT:"transparent"}}>
+                          <td style={{padding:"8px 4px",color:i===todayIdx?OLIVE:TEXT,fontWeight:i===todayIdx?"bold":"normal"}}>{SHORT[i]}</td>
+                          <td style={{padding:"8px 4px",textAlign:"right"}}>{dt.revenue>0?fmtMoney(dt.revenue):"—"}</td>
+                          <td style={{padding:"8px 4px",textAlign:"right"}}>{dt.totalWages>0?fmtMoney(dt.totalWages):"—"}</td>
+                          <td style={{padding:"8px 4px",textAlign:"right",color:AMBER}}>{dt.super_>0?fmtMoney(dt.super_):"—"}</td>
+                          <td style={{padding:"8px 4px",textAlign:"right",fontWeight:"bold",color:dt.total>0?RED:MUTED}}>{dt.total>0?fmtMoney(dt.total):"—"}</td>
+                          <td style={{padding:"8px 4px",textAlign:"right",fontWeight:"bold",color:dt.labourPct?(parseFloat(dt.labourPct)<=30?GREEN:parseFloat(dt.labourPct)<=40?AMBER:RED):MUTED}}>{dt.labourPct?dt.labourPct+"%":"—"}</td>
+                        </tr>
+                      ))}
+                      <tr style={{borderTop:"2px solid "+OLIVE}}>
+                        <td style={{padding:"8px 4px",fontWeight:"bold",color:OLIVE}}>Total</td>
+                        <td style={{padding:"8px 4px",textAlign:"right",fontWeight:"bold"}}>{fmtMoney(weekRevenue)}</td>
+                        <td style={{padding:"8px 4px",textAlign:"right",fontWeight:"bold"}}>{fmtMoney(weekTotalWages)}</td>
+                        <td style={{padding:"8px 4px",textAlign:"right",fontWeight:"bold",color:AMBER}}>{fmtMoney(weekSuper)}</td>
+                        <td style={{padding:"8px 4px",textAlign:"right",fontWeight:"bold",color:RED}}>{fmtMoney(weekTotal)}</td>
+                        <td style={{padding:"8px 4px",textAlign:"right",fontWeight:"bold",color:weekLabourPct?(parseFloat(weekLabourPct)<=30?GREEN:parseFloat(weekLabourPct)<=40?AMBER:RED):MUTED}}>{weekLabourPct?weekLabourPct+"%":"—"}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          );
+        })()}
           <div style={{maxWidth:900,margin:"0 auto"}}>
             <h2 style={{color:OLIVE,fontWeight:"normal",fontSize:20,marginBottom:4}}>Food Cost Calculator</h2>
             <p style={{color:MUTED,fontSize:13,marginTop:0,marginBottom:18}}>All formulas calculate live as you type.</p>
