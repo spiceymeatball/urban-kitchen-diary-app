@@ -220,12 +220,16 @@ export default function App() {
     setXeroLoading(false);
   };
 
-  // Read Xero connection status from URL
+  // Read Xero connection status from URL or sessionStorage
   const _url = typeof window !== 'undefined' ? new URL(window.location.href) : null;
   const xeroConnected = _url ? _url.searchParams.get("xero") === "connected" : false;
   const xeroErrorFromUrl = _url ? _url.searchParams.get("xero_error") : null;
-  const xeroTokenFromUrl = null;
-  const xeroTenantFromUrl = null;
+  const xeroTokenFromUrl = typeof window !== 'undefined' ? sessionStorage.getItem('xero_token') : null;
+  const xeroTenantFromUrl = typeof window !== 'undefined' ? sessionStorage.getItem('xero_tenant') : null;
+  if(typeof window !== 'undefined' && xeroTokenFromUrl) {
+    sessionStorage.removeItem('xero_token');
+    sessionStorage.removeItem('xero_tenant');
+  }
   if(typeof window !== 'undefined' && (xeroConnected || xeroErrorFromUrl)) {
     window.history.replaceState({}, document.title, "/");
   }
@@ -233,30 +237,10 @@ export default function App() {
   useEffect(()=>{
     if(!loaded) return;
     fetchSquareData();
-    if(xeroConnected) {
-      // Poll for token up to 5 times with 1 second delay
-      let attempts = 0;
-      const poll = () => {
-        attempts++;
-        fetch("/api/xero-token")
-          .then(r=>r.json())
-          .then(data=>{
-            if(data.token && data.tenant) {
-              setXeroToken(data.token);
-              setXeroTenant(data.tenant);
-              fetchXeroData(data.token, data.tenant);
-            } else if(attempts < 5) {
-              setTimeout(poll, 1000);
-            } else {
-              setXeroError("Could not retrieve Xero token. Please try again.");
-            }
-          })
-          .catch(e=>{
-            if(attempts < 5) setTimeout(poll, 1000);
-            else setXeroError("Could not connect to Xero.");
-          });
-      };
-      setTimeout(poll, 500);
+    if(xeroTokenFromUrl && xeroTenantFromUrl) {
+      setXeroToken(xeroTokenFromUrl);
+      setXeroTenant(xeroTenantFromUrl);
+      fetchXeroData(xeroTokenFromUrl, xeroTenantFromUrl);
     } else if(xeroErrorFromUrl) {
       setXeroError("Xero error: "+decodeURIComponent(xeroErrorFromUrl));
     }
