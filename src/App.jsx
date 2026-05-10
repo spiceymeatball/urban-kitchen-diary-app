@@ -220,12 +220,14 @@ export default function App() {
     setXeroLoading(false);
   };
 
-  // Read Xero token from URL
-  const urlParams = new URLSearchParams(window.location.search);
-  const xeroTokenFromUrl = urlParams.get("xt");
-  const xeroTenantFromUrl = urlParams.get("xi");
-  const xeroErrorFromUrl = urlParams.get("xero_error");
-  if(xeroTokenFromUrl && xeroTenantFromUrl) window.history.replaceState({},document.title,"/");
+  // Read Xero token from URL - must happen before state initialization
+  const _url = typeof window !== 'undefined' ? new URL(window.location.href) : null;
+  const xeroTokenFromUrl = _url ? _url.searchParams.get("xt") : null;
+  const xeroTenantFromUrl = _url ? _url.searchParams.get("xi") : null;
+  const xeroErrorFromUrl = _url ? _url.searchParams.get("xero_error") : null;
+  if(xeroTokenFromUrl && xeroTenantFromUrl && typeof window !== 'undefined') {
+    window.history.replaceState({}, document.title, "/");
+  }
 
   useEffect(()=>{
     if(!loaded) return;
