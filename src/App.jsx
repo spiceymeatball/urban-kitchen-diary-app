@@ -172,7 +172,9 @@ export default function App() {
   const [xeroTenant, setXeroTenant] = useState(null);
   const [xeroLoading, setXeroLoading] = useState(false);
   const [xeroError, setXeroError] = useState("");
-  const bizFileRef = useRef();
+  const [calView, setCalView] = useState("month"); // month | week
+  const [calMonth, setCalMonth] = useState(new Date());
+  const [calWeek, setCalWeek] = useState(new Date());
   const importRef = useRef();
 
   useEffect(() => {
@@ -284,7 +286,7 @@ export default function App() {
     reader.readAsText(file); e.target.value="";
   };
 
-  const navItems=[{id:"today",label:"Today",icon:"☀️"},{id:"business",label:"Business",icon:"📊"},{id:"food",label:"Food Cost",icon:"🍽️"},{id:"week",label:"Week",icon:"📅"},{id:"day",label:"Day",icon:"📝"}];
+  const navItems=[{id:"today",label:"Today",icon:"☀️"},{id:"business",label:"Business",icon:"📊"},{id:"food",label:"Food Cost",icon:"🍽️"},{id:"calendar",label:"Calendar",icon:"📅"},{id:"day",label:"Day",icon:"📝"}];
 
   const SC = ({label,value,color}) => (
     <div style={{background:WHITE,borderRadius:10,padding:"14px 16px",flex:1,minWidth:90}}>
@@ -387,7 +389,21 @@ export default function App() {
                     <SC label="AVG SALE" value={fmtMoney(squareData.avgSale)} />
                   </div>
                   {squareData.paymentTypes&&Object.keys(squareData.paymentTypes).length>0&&(
-                    <div style={{fontSize:12,color:MUTED}}>Payment types: {Object.entries(squareData.paymentTypes).map(([k,v])=>k+": "+fmtMoney(v)).join(" | ")}</div>
+                    <div style={{fontSize:12,color:MUTED,marginBottom:10}}>Payment types: {Object.entries(squareData.paymentTypes).map(([k,v])=>k+": "+fmtMoney(v)).join(" | ")}</div>
+                  )}
+                  {squareData.hourly&&Object.keys(squareData.hourly).length>0&&(
+                    <div style={{marginTop:10}}>
+                      <div style={{fontSize:11,color:MUTED,letterSpacing:1,marginBottom:8}}>HOURLY BREAKDOWN</div>
+                      <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                        {Object.entries(squareData.hourly).sort((a,b)=>parseInt(a[0])-parseInt(b[0])).map(([hour,data])=>(
+                          <div key={hour} style={{background:OLIVE_LIGHT,borderRadius:6,padding:"6px 8px",minWidth:60,textAlign:"center"}}>
+                            <div style={{fontSize:10,color:MUTED}}>{hour}</div>
+                            <div style={{fontSize:12,fontWeight:"bold",color:OLIVE}}>{fmtMoney(data.revenue)}</div>
+                            <div style={{fontSize:10,color:MUTED}}>{data.transactions} txn</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   )}
                   <div style={{fontSize:11,color:OLIVE_MID,marginTop:8}}>Auto-filled into today's daily entry</div>
                 </div>
@@ -593,12 +609,116 @@ export default function App() {
           </div>
         )}
 
-        {view==="week"&&(
-          <div style={{maxWidth:560,margin:"0 auto"}}>
-            <h2 style={{color:OLIVE,fontWeight:"normal",fontSize:20,marginBottom:16}}>This Week</h2>
-            <div style={{display:"flex",flexDirection:"column",gap:10}}>
-              {DAYS.map((d,i)=>{const e=diary[d];const b=biz[d];return(<div key={d} onClick={()=>{setSelected(i);setView("day");}} style={{background:i===todayIdx?OLIVE:WHITE,borderRadius:10,padding:"12px 16px",cursor:"pointer",border:"1px solid "+(i===todayIdx?OLIVE:OLIVE_LIGHT),display:"flex",alignItems:"center",justifyContent:"space-between"}}><div><div style={{fontWeight:"bold",fontSize:14,color:i===todayIdx?WHITE:OLIVE}}>{d}{i===todayIdx?" Today":""}</div><div style={{fontSize:12,color:i===todayIdx?"#d4e0b8":MUTED,marginTop:2}}>{e.note?'"'+e.note.slice(0,35)+'..."':"No entry"}</div></div><div style={{textAlign:"right"}}><div style={{fontSize:13,color:i===todayIdx?WHITE:OLIVE,fontWeight:"bold"}}>{b.revenue?fmtMoney(b.revenue):""}</div><div style={{fontSize:11,color:i===todayIdx?"#d4e0b8":MUTED}}>{e.mood} {e.tasks.length>0?e.tasks.filter(t=>t.done).length+"/"+e.tasks.length+" tasks":""}</div></div></div>);})}
+        {view==="calendar"&&(
+          <div style={{maxWidth:700,margin:"0 auto"}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+              <h2 style={{color:OLIVE,fontWeight:"normal",fontSize:20,margin:0}}>Calendar</h2>
+              <div style={{display:"flex",gap:6}}>
+                <button onClick={()=>setCalView("month")} style={{background:calView==="month"?OLIVE:WHITE,color:calView==="month"?WHITE:OLIVE,border:"1px solid "+OLIVE,borderRadius:7,padding:"5px 14px",cursor:"pointer",fontSize:12,fontFamily:"Georgia, serif"}}>Month</button>
+                <button onClick={()=>setCalView("week")} style={{background:calView==="week"?OLIVE:WHITE,color:calView==="week"?WHITE:OLIVE,border:"1px solid "+OLIVE,borderRadius:7,padding:"5px 14px",cursor:"pointer",fontSize:12,fontFamily:"Georgia, serif"}}>Week</button>
+              </div>
             </div>
+
+            {calView==="month"&&(()=>{
+              const year=calMonth.getFullYear();
+              const month=calMonth.getMonth();
+              const firstDay=new Date(year,month,1).getDay();
+              const daysInMonth=new Date(year,month+1,0).getDate();
+              const monthName=calMonth.toLocaleDateString("en-AU",{month:"long",year:"numeric"});
+              const blanks=firstDay===0?6:firstDay-1;
+              const cells=[];
+              for(let i=0;i<blanks;i++) cells.push(null);
+              for(let i=1;i<=daysInMonth;i++) cells.push(i);
+
+              return(
+                <div>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+                    <button onClick={()=>setCalMonth(new Date(year,month-1,1))} style={{background:OLIVE_LIGHT,border:"none",borderRadius:7,padding:"6px 14px",cursor:"pointer",color:OLIVE,fontFamily:"Georgia, serif"}}>←</button>
+                    <div style={{fontSize:16,color:OLIVE,fontWeight:"bold"}}>{monthName}</div>
+                    <button onClick={()=>setCalMonth(new Date(year,month+1,1))} style={{background:OLIVE_LIGHT,border:"none",borderRadius:7,padding:"6px 14px",cursor:"pointer",color:OLIVE,fontFamily:"Georgia, serif"}}>→</button>
+                  </div>
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4,marginBottom:4}}>
+                    {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(d=>(
+                      <div key={d} style={{textAlign:"center",fontSize:11,color:MUTED,padding:"4px 0"}}>{d}</div>
+                    ))}
+                  </div>
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4}}>
+                    {cells.map((d,i)=>{
+                      if(!d) return <div key={i} />;
+                      const date=new Date(year,month,d);
+                      const dayName=DAYS[date.getDay()===0?6:date.getDay()-1];
+                      const isToday=date.toDateString()===new Date().toDateString();
+                      const diaryEntry=diary[dayName];
+                      const bizEntry=biz[dayName];
+                      const hasNote=diaryEntry&&diaryEntry.note;
+                      const hasRevenue=bizEntry&&num(bizEntry.revenue)>0;
+                      return(
+                        <div key={d} onClick={()=>{setSelected(date.getDay()===0?6:date.getDay()-1);setView("day");}}
+                          style={{background:isToday?OLIVE:WHITE,borderRadius:8,padding:"6px 4px",cursor:"pointer",border:"1px solid "+(isToday?OLIVE:OLIVE_LIGHT),minHeight:60}}>
+                          <div style={{fontSize:13,fontWeight:"bold",color:isToday?WHITE:TEXT,textAlign:"center"}}>{d}</div>
+                          {hasRevenue&&<div style={{fontSize:9,color:isToday?OLIVE_LIGHT:GREEN,textAlign:"center",marginTop:2}}>{fmtMoney(bizEntry.revenue)}</div>}
+                          {hasNote&&<div style={{fontSize:9,color:isToday?OLIVE_LIGHT:MUTED,textAlign:"center",marginTop:1}}>📝</div>}
+                          {diaryEntry&&diaryEntry.mood&&<div style={{fontSize:9,textAlign:"center"}}>{diaryEntry.mood}</div>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {calView==="week"&&(()=>{
+              const weekStart=new Date(calWeek);
+              const day=weekStart.getDay();
+              weekStart.setDate(weekStart.getDate()-(day===0?6:day-1));
+              const weekDays=Array.from({length:7},(_,i)=>{
+                const d=new Date(weekStart);
+                d.setDate(d.getDate()+i);
+                return d;
+              });
+              const weekLabel=weekStart.toLocaleDateString("en-AU",{day:"numeric",month:"short"})+" - "+
+                new Date(weekStart.getTime()+6*86400000).toLocaleDateString("en-AU",{day:"numeric",month:"short"});
+
+              return(
+                <div>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+                    <button onClick={()=>{const d=new Date(calWeek);d.setDate(d.getDate()-7);setCalWeek(d);}} style={{background:OLIVE_LIGHT,border:"none",borderRadius:7,padding:"6px 14px",cursor:"pointer",color:OLIVE,fontFamily:"Georgia, serif"}}>←</button>
+                    <div style={{fontSize:15,color:OLIVE,fontWeight:"bold"}}>{weekLabel}</div>
+                    <button onClick={()=>{const d=new Date(calWeek);d.setDate(d.getDate()+7);setCalWeek(d);}} style={{background:OLIVE_LIGHT,border:"none",borderRadius:7,padding:"6px 14px",cursor:"pointer",color:OLIVE,fontFamily:"Georgia, serif"}}>→</button>
+                  </div>
+                  <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                    {weekDays.map((date,i)=>{
+                      const dayName=DAYS[date.getDay()===0?6:date.getDay()-1];
+                      const isToday=date.toDateString()===new Date().toDateString();
+                      const e=diary[dayName];
+                      const b=biz[dayName];
+                      const profit=num(b.revenue)-num(b.cogs);
+                      return(
+                        <div key={i} onClick={()=>{setSelected(date.getDay()===0?6:date.getDay()-1);setView("day");}}
+                          style={{background:isToday?OLIVE:WHITE,borderRadius:10,padding:"12px 16px",cursor:"pointer",border:"1px solid "+(isToday?OLIVE:OLIVE_LIGHT)}}>
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                            <div>
+                              <div style={{fontWeight:"bold",fontSize:14,color:isToday?WHITE:OLIVE}}>
+                                {date.toLocaleDateString("en-AU",{weekday:"long",day:"numeric",month:"short"})}
+                                {isToday?" · Today":""}
+                              </div>
+                              <div style={{fontSize:12,color:isToday?"#d4e0b8":MUTED,marginTop:2}}>
+                                {e.mood} {e.note?'"'+e.note.slice(0,40)+'..."':"No entry"}
+                              </div>
+                              {e.tasks.length>0&&<div style={{fontSize:11,color:isToday?"#d4e0b8":MUTED,marginTop:2}}>{e.tasks.filter(t=>t.done).length}/{e.tasks.length} tasks</div>}
+                            </div>
+                            <div style={{textAlign:"right"}}>
+                              {num(b.revenue)>0&&<div style={{fontSize:14,fontWeight:"bold",color:isToday?WHITE:GREEN}}>{fmtMoney(b.revenue)}</div>}
+                              {num(b.revenue)>0&&<div style={{fontSize:11,color:isToday?"#d4e0b8":(profit>=0?GREEN:RED)}}>{profit>=0?"+":""}{fmtMoney(profit)}</div>}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
 
