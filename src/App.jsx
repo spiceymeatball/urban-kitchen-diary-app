@@ -167,6 +167,8 @@ export default function App() {
   const [squareData, setSquareData] = useState(null);
   const [squareLoading, setSquareLoading] = useState(false);
   const [squareError, setSquareError] = useState("");
+  const [squareByDate, setSquareByDate] = useState({});
+  const [loadingDates, setLoadingDates] = useState({});
   const [xeroData, setXeroData] = useState(null);
   const [xeroToken, setXeroToken] = useState(null);
   const [xeroTenant, setXeroTenant] = useState(null);
@@ -399,11 +401,11 @@ export default function App() {
                     <div style={{marginTop:10}}>
                       <div style={{fontSize:11,color:MUTED,letterSpacing:1,marginBottom:8}}>HOURLY BREAKDOWN</div>
                       <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
-                        {Object.entries(squareData.hourly).sort((a,b)=>parseInt(a[0])-parseInt(b[0])).map(([hour,data])=>(
-                          <div key={hour} style={{background:OLIVE_LIGHT,borderRadius:6,padding:"6px 8px",minWidth:60,textAlign:"center"}}>
-                            <div style={{fontSize:10,color:MUTED}}>{hour}</div>
-                            <div style={{fontSize:12,fontWeight:"bold",color:OLIVE}}>{fmtMoney(data&&data.revenue?data.revenue:0)}</div>
-                            <div style={{fontSize:10,color:MUTED}}>{data&&data.transactions?data.transactions:0} txn</div>
+                        {Object.entries(squareData.hourly).sort((a,b)=>parseInt(a[0])-parseInt(b[0])).map(([sortKey,data])=>(
+                          <div key={sortKey} style={{background:OLIVE_LIGHT,borderRadius:6,padding:"6px 8px",minWidth:65,textAlign:"center"}}>
+                            <div style={{fontSize:10,color:MUTED}}>{data.label||sortKey+":00"}</div>
+                            <div style={{fontSize:12,fontWeight:"bold",color:OLIVE}}>{fmtMoney(data.revenue||0)}</div>
+                            <div style={{fontSize:10,color:MUTED}}>{data.transactions||0} txn</div>
                           </div>
                         ))}
                       </div>
@@ -634,6 +636,13 @@ export default function App() {
               for(let i=0;i<blanks;i++) cells.push(null);
               for(let i=1;i<=daysInMonth;i++) cells.push(i);
 
+              // Auto fetch Square data for all days in month
+              cells.filter(d=>d).forEach(d=>{
+                const dateStr=year+"-"+String(month+1).padStart(2,'0')+"-"+String(d).padStart(2,'0');
+                const dayDate=new Date(year,month,d);
+                if(dayDate<=new Date()) fetchSquareForDate(dateStr);
+              });
+
               return(
                 <div>
                   <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
@@ -650,18 +659,19 @@ export default function App() {
                     {cells.map((d,i)=>{
                       if(!d) return <div key={i} />;
                       const date=new Date(year,month,d);
+                      const dateStr=year+"-"+String(month+1).padStart(2,'0')+"-"+String(d).padStart(2,'0');
                       const dayName=DAYS[date.getDay()===0?6:date.getDay()-1];
                       const isToday=date.toDateString()===new Date().toDateString();
                       const diaryEntry=diary[dayName];
-                      const bizEntry=biz[dayName];
-                      const hasNote=diaryEntry&&diaryEntry.note;
-                      const hasRevenue=bizEntry&&num(bizEntry.revenue)>0;
+                      const sqData=squareByDate[dateStr];
+                      const isLoading=loadingDates[dateStr];
                       return(
                         <div key={d} onClick={()=>{setSelected(date.getDay()===0?6:date.getDay()-1);setView("day");}}
-                          style={{background:isToday?OLIVE:WHITE,borderRadius:8,padding:"6px 4px",cursor:"pointer",border:"1px solid "+(isToday?OLIVE:OLIVE_LIGHT),minHeight:60}}>
+                          style={{background:isToday?OLIVE:WHITE,borderRadius:8,padding:"6px 4px",cursor:"pointer",border:"1px solid "+(isToday?OLIVE:OLIVE_LIGHT),minHeight:70}}>
                           <div style={{fontSize:13,fontWeight:"bold",color:isToday?WHITE:TEXT,textAlign:"center"}}>{d}</div>
-                          {hasRevenue&&<div style={{fontSize:9,color:isToday?OLIVE_LIGHT:GREEN,textAlign:"center",marginTop:2}}>{fmtMoney(bizEntry.revenue)}</div>}
-                          {hasNote&&<div style={{fontSize:9,color:isToday?OLIVE_LIGHT:MUTED,textAlign:"center",marginTop:1}}>📝</div>}
+                          {isLoading&&<div style={{fontSize:8,color:MUTED,textAlign:"center"}}>...</div>}
+                          {sqData&&sqData.netSales>0&&<div style={{fontSize:9,color:isToday?OLIVE_LIGHT:GREEN,textAlign:"center",marginTop:2,fontWeight:"bold"}}>{fmtMoney(sqData.netSales)}</div>}
+                          {sqData&&sqData.transactions>0&&<div style={{fontSize:8,color:isToday?OLIVE_LIGHT:MUTED,textAlign:"center"}}>{sqData.transactions} txn</div>}
                           {diaryEntry&&diaryEntry.mood&&<div style={{fontSize:9,textAlign:"center"}}>{diaryEntry.mood}</div>}
                         </div>
                       );
