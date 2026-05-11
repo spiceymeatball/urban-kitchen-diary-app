@@ -8,11 +8,19 @@ fetch('/api/xero-token')
   .then(r => r.json())
   .then(data => {
     if (data.token && data.tenant) {
-      localStorage.setItem('xero_token', data.token);
-      localStorage.setItem('xero_tenant', data.tenant);
       window.location.href = '/#xero=connected';
     } else {
-      window.location.href = '/#xero_error=no_token';
+      setTimeout(() => {
+        fetch('/api/xero-token')
+          .then(r => r.json())
+          .then(data => {
+            if (data.token && data.tenant) {
+              window.location.href = '/#xero=connected';
+            } else {
+              window.location.href = '/#xero_error=no_token';
+            }
+          });
+      }, 1000);
     }
   })
   .catch(() => window.location.href = '/#xero_error=fetch_failed');
