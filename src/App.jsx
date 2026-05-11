@@ -220,27 +220,42 @@ export default function App() {
     setXeroLoading(false);
   };
 
-  // Read Xero token from localStorage
-  const _url = typeof window !== 'undefined' ? new URL(window.location.href) : null;
-  const xeroErrorFromUrl = _url ? _url.searchParams.get("xero_error") : null;
-  const xeroTokenFromUrl = typeof window !== 'undefined' ? localStorage.getItem('xero_token') : null;
-  const xeroTenantFromUrl = typeof window !== 'undefined' ? localStorage.getItem('xero_tenant') : null;
-  const xeroConnected = false;
-  if(typeof window !== 'undefined' && xeroTokenFromUrl) {
-    localStorage.removeItem('xero_token');
-    localStorage.removeItem('xero_tenant');
-  }
-  if(typeof window !== 'undefined' && xeroErrorFromUrl) {
-    window.history.replaceState({}, document.title, "/");
+  // Read Xero token from URL hash
+  const _hash = typeof window !== 'undefined' ? window.location.hash : '';
+  const xeroTokenFromUrl = null;
+  const xeroTenantFromUrl = null;
+  const xeroConnected = _hash.includes('xero=connected');
+  const xeroErrorFromUrl = null;
+  if(typeof window !== 'undefined' && _hash) {
+    window.history.replaceState({}, document.title, window.location.pathname);
   }
 
   useEffect(()=>{
     if(!loaded) return;
     fetchSquareData();
-    if(xeroTokenFromUrl && xeroTenantFromUrl) {
-      setXeroToken(xeroTokenFromUrl);
-      setXeroTenant(xeroTenantFromUrl);
-      fetchXeroData(xeroTokenFromUrl, xeroTenantFromUrl);
+    if(xeroConnected) {
+      // Fetch token from server
+      let attempts = 0;
+      const poll = () => {
+        attempts++;
+        fetch("/api/xero-token")
+          .then(r=>r.json())
+          .then(data=>{
+            if(data.token && data.tenant) {
+              setXeroToken(data.token);
+              setXeroTenant(data.tenant);
+              fetchXeroData(data.token, data.tenant);
+            } else if(attempts < 10) {
+              setTimeout(poll, 500);
+            } else {
+              setXeroError("Could not retrieve Xero token. Please try again.");
+            }
+          })
+          .catch(()=>{
+            if(attempts < 10) setTimeout(poll, 500);
+          });
+      };
+      poll();
     } else if(xeroErrorFromUrl) {
       setXeroError("Xero error: "+decodeURIComponent(xeroErrorFromUrl));
     }
