@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Xero Connected</title>
+<style>
+  body { font-family: Georgia, serif; background: #e8edd8; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+  .box { background: white; border-radius: 12px; padding: 32px; max-width: 500px; width: 90%; text-align: center; }
+  h2 { color: #6b7c4a; margin-bottom: 8px; }
+  p { color: #8a9070; font-size: 14px; margin-bottom: 20px; }
+  input { width: 100%; padding: 10px; border: 1px solid #e8edd8; border-radius: 8px; font-size: 12px; margin-bottom: 12px; box-sizing: border-box; color: #3a3a2e; }
+  button { background: #6b7c4a; color: white; border: none; border-radius: 8px; padding: 12px 24px; font-size: 14px; cursor: pointer; font-family: Georgia, serif; width: 100%; }
+</style>
+</head>
+<body>
+<div class="box">
+  <h2>☕ Xero Connected!</h2>
+  <p>Click the button below to go back to your app.</p>
+  <div id="content"><p>Loading...</p></div>
+</div>
+<script>
+fetch('/api/xero-token')
+  .then(r => r.json())
+  .then(data => {
+    if (data.token && data.tenant) {
+      document.getElementById('content').innerHTML = 
+        '<button onclick="window.location.href=\'/?xt=' + encodeURIComponent(data.token) + '&xi=' + encodeURIComponent(data.tenant) + '\'">Go to Urban Kitchen Diary ☕</button>';
+    } else {
+      document.getElementById('content').innerHTML = '<p style="color:red">Could not load token. Please try connecting again.</p><button onclick="window.location.href=\'/\'">Go Back</button>';
+    }
+  })
+  .catch(() => {
+    document.getElementById('content').innerHTML = '<p style="color:red">Error loading. Please try again.</p><button onclick="window.location.href=\'/\'">Go Back</button>';
+  });
+</script>
+</body>
+</html>
