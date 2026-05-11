@@ -220,17 +220,17 @@ export default function App() {
     setXeroLoading(false);
   };
 
-  // Read Xero connection status from URL or sessionStorage
+  // Read Xero token from localStorage
   const _url = typeof window !== 'undefined' ? new URL(window.location.href) : null;
-  const xeroConnected = _url ? _url.searchParams.get("xero") === "connected" : false;
   const xeroErrorFromUrl = _url ? _url.searchParams.get("xero_error") : null;
-  const xeroTokenFromUrl = typeof window !== 'undefined' ? sessionStorage.getItem('xero_token') : null;
-  const xeroTenantFromUrl = typeof window !== 'undefined' ? sessionStorage.getItem('xero_tenant') : null;
+  const xeroTokenFromUrl = typeof window !== 'undefined' ? localStorage.getItem('xero_token') : null;
+  const xeroTenantFromUrl = typeof window !== 'undefined' ? localStorage.getItem('xero_tenant') : null;
+  const xeroConnected = false;
   if(typeof window !== 'undefined' && xeroTokenFromUrl) {
-    sessionStorage.removeItem('xero_token');
-    sessionStorage.removeItem('xero_tenant');
+    localStorage.removeItem('xero_token');
+    localStorage.removeItem('xero_tenant');
   }
-  if(typeof window !== 'undefined' && (xeroConnected || xeroErrorFromUrl)) {
+  if(typeof window !== 'undefined' && xeroErrorFromUrl) {
     window.history.replaceState({}, document.title, "/");
   }
 
