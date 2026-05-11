@@ -8,14 +8,14 @@ fetch('/api/xero-token')
   .then(r => r.json())
   .then(data => {
     if (data.token && data.tenant) {
-      sessionStorage.setItem('xero_token', data.token);
-      sessionStorage.setItem('xero_tenant', data.tenant);
-      window.location.href = '/';
+      localStorage.setItem('xero_token', data.token);
+      localStorage.setItem('xero_tenant', data.tenant);
+      window.location.href = '/#xero=connected';
     } else {
-      window.location.href = '/?xero_error=no_token';
+      window.location.href = '/#xero_error=no_token';
     }
   })
-  .catch(() => window.location.href = '/?xero_error=fetch_failed');
+  .catch(() => window.location.href = '/#xero_error=fetch_failed');
 </script>
 </body>
 </html>
