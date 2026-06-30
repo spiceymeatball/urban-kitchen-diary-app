@@ -124,7 +124,7 @@ export default function App() {
   const [wages, setWagesRaw] = useState(initWages());
   const [loaded, setLoaded] = useState(false);
   const [selected, setSelected] = useState(todayIdx);
-  const [view, setView] = useState("today");
+  const [view, setView] = useState("command");
   const [taskInput, setTaskInput] = useState("");
   const [csvError, setCsvError] = useState("");
   const [expandedRecipe, setExpandedRecipe] = useState(null);
@@ -146,8 +146,10 @@ export default function App() {
   const [calWeek, setCalWeek] = useState(new Date());
   const [newEmpName, setNewEmpName] = useState("");
   const [newEmpRate, setNewEmpRate] = useState("");
-  const bizFileRef = useRef();
-  const importRef = useRef();
+  const [cmdWeeks, setCmdWeeks] = useState([]);
+  const [cmdLoading, setCmdLoading] = useState(false);
+  const [cmdToday, setCmdToday] = useState(null);
+  const [cmdYesterday, setCmdYesterday] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -186,14 +188,36 @@ export default function App() {
   const updateBiz = (d,k,v) => setBiz(p=>({...p,[d]:{...p[d],[k]:v}}));
 
   const fetchSquareForDate = async (dateStr) => {
-    if(squareByDate[dateStr]||loadingDates[dateStr]) return;
+    if(squareByDate[dateStr]||loadingDates[dateStr]) return null;
     setLoadingDates(p=>({...p,[dateStr]:true}));
     try {
       const res = await fetch("/api/square?date="+dateStr);
       const data = await res.json();
-      if(!data.error) setSquareByDate(p=>({...p,[dateStr]:data}));
+      if(!data.error) { setSquareByDate(p=>({...p,[dateStr]:data})); setLoadingDates(p=>({...p,[dateStr]:false})); return data; }
     } catch(e){}
     setLoadingDates(p=>({...p,[dateStr]:false}));
+    return null;
+  };
+
+  const loadCommandCentre = async () => {
+    setCmdLoading(true);
+    const now = new Date();
+    const todayStr = now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,'0')+"-"+String(now.getDate()).padStart(2,'0');
+    const yest = new Date(now); yest.setDate(yest.getDate()-1);
+    const yestStr = yest.getFullYear()+"-"+String(yest.getMonth()+1).padStart(2,'0')+"-"+String(yest.getDate()).padStart(2,'0');
+
+    // Today's live data (via the no-date-param endpoint isn't "today", so call with explicit date)
+    try {
+      const tRes = await fetch("/api/square?date="+todayStr);
+      const tData = await tRes.json();
+      if(!tData.error) setCmdToday(tData);
+    } catch(e){}
+
+    let yData = squareByDate[yestStr];
+    if(!yData) yData = await fetchSquareForDate(yestStr);
+    setCmdYesterday(yData);
+
+    setCmdLoading(false);
   };
 
   const fetchSquareData = async () => {
@@ -320,7 +344,7 @@ export default function App() {
   const weekWageRevenue=dailyWageTotals.reduce((s,d)=>s+d.revenue,0);
   const weekLabourPct=weekWageRevenue>0?(weekWageTotal/weekWageRevenue*100).toFixed(1):null;
 
-  const navItems=[{id:"today",label:"Today",icon:"☀️"},{id:"business",label:"Business",icon:"📊"},{id:"wages",label:"Wages",icon:"💰"},{id:"food",label:"Food Cost",icon:"🍽️"},{id:"calendar",label:"Calendar",icon:"📅"},{id:"day",label:"Day",icon:"📝"}];
+  const navItems=[{id:"command",label:"Command",icon:"🎯"},{id:"today",label:"Today",icon:"☀️"},{id:"business",label:"Business",icon:"📊"},{id:"wages",label:"Wages",icon:"💰"},{id:"food",label:"Food Cost",icon:"🍽️"},{id:"calendar",label:"Calendar",icon:"📅"},{id:"day",label:"Day",icon:"📝"}];
 
   const SC = ({label,value,color}) => (
     <div style={{background:WHITE,borderRadius:10,padding:"14px 16px",flex:1,minWidth:90}}>
@@ -363,6 +387,223 @@ export default function App() {
 
       <div style={{flex:1,overflowY:"auto",padding:"20px 18px"}}>
 
+        {/* COMMAND CENTRE */}
+        {view==="command"&&(()=>{
+          const now = new Date();
+          const isAfter4pm = now.getHours() >= 16;
+          const dayName = DAYS[todayIdx];
+
+          // Today's labour cost
+          let todayWages = 0;
+          wages.employees.forEach(emp=>{ todayWages += getHours(dayName,emp.id)*num(emp.rate); });
+          const todayLabourTotal = todayWages + todayWages*SUPER_RATE;
+          const todayRevenue = cmdToday ? cmdToday.netSales : 0;
+          const todayLabourPct = todayRevenue>0 ? (todayLabourTotal/todayRevenue*100) : null;
+          const todayTransactions = cmdToday ? cmdToday.transactions : 0;
+          const todayAvgSpend = cmdToday ? cmdToday.avgSale : 0;
+
+          // food cost target from recipes
+          const recipeMargins = recipes.filter(r=>num(r.sellPrice)>0).map(r=>{
+            const tc=r.ingredients.reduce((s,ing)=>s+(num(ing.unitCost)*num(ing.portionQty)),0);
+            const portions=num(r.portionsPerRecipe)||1;
+            const cps=tc/portions;
+            return (cps/num(r.sellPrice))*100;
+          });
+          const targetCogs = recipeMargins.length>0 ? recipeMargins.reduce((a,b)=>a+b,0)/recipeMargins.length : null;
+
+          // Yesterday comparison
+          const yestRevenue = cmdYesterday ? cmdYesterday.netSales : null;
+          const yestDayName = DAYS[(todayIdx-1+7)%7];
+          let yestWages = 0;
+          wages.employees.forEach(emp=>{ yestWages += getHours(yestDayName,emp.id)*num(emp.rate); });
+          const yestLabourPct = yestRevenue>0 ? (((yestWages+yestWages*SUPER_RATE))/yestRevenue*100) : null;
+
+          const pctChange = (cur,prev) => (prev!=null && prev>0) ? ((cur-prev)/prev*100) : null;
+          const revChange = yestRevenue!=null ? pctChange(todayRevenue, yestRevenue) : null;
+          const labChange = (todayLabourPct!=null && yestLabourPct!=null) ? (todayLabourPct - yestLabourPct) : null;
+          const avgChange = (cmdYesterday && cmdYesterday.avgSale>0) ? pctChange(todayAvgSpend, cmdYesterday.avgSale) : null;
+
+          const statusColor = (val,goodMax,warnMax,inverse) => {
+            if(val==null) return MUTED;
+            if(inverse){ if(val<=goodMax) return GREEN; if(val<=warnMax) return AMBER; return RED; }
+            return val>=goodMax?GREEN:val>=warnMax?AMBER:RED;
+          };
+
+          const TrendArrow = ({value, goodIsUp}) => {
+            if(value==null) return <span style={{color:MUTED,fontSize:12}}>—</span>;
+            const up = value>0;
+            const good = goodIsUp ? up : !up;
+            const color = Math.abs(value)<2 ? MUTED : (good?GREEN:RED);
+            return <span style={{color,fontSize:12,fontWeight:"bold"}}>{up?"▲":"▼"} {Math.abs(value).toFixed(1)}%</span>;
+          };
+
+          // Watchlist for today
+          const watchlist = [];
+          if(todayLabourPct!=null && todayLabourPct>30){
+            watchlist.push({severity:todayLabourPct>35?3:2, title:"Labour cost is high today",
+              detail:dayName+" is tracking at "+todayLabourPct.toFixed(1)+"% labour on "+fmtMoneyZero(todayRevenue)+" revenue so far.",
+              fix:"If quiet for the rest of the day, consider sending someone home early or trimming tomorrow's roster."});
+          }
+          if(revChange!=null && revChange < -15 && isAfter4pm){
+            watchlist.push({severity:revChange<-25?3:2, title:"Revenue down vs yesterday",
+              detail:"Today is "+Math.abs(revChange).toFixed(1)+"% behind yesterday ("+fmtMoneyZero(todayRevenue)+" vs "+fmtMoneyZero(yestRevenue)+").",
+              fix:"Worth checking if this is a one-off quiet day or part of a pattern — review tomorrow's Command tab."});
+          }
+          if(avgChange!=null && avgChange < -10 && isAfter4pm){
+            watchlist.push({severity:2, title:"Average spend dropping today",
+              detail:"Avg sale today is "+fmtMoneyZero(todayAvgSpend)+" vs "+fmtMoneyZero(cmdYesterday.avgSale)+" yesterday.",
+              fix:"Consider an upsell prompt at the counter, or check if a high-margin item is out of stock."});
+          }
+          watchlist.sort((a,b)=>b.severity-a.severity);
+
+          return (
+            <div style={{maxWidth:900,margin:"0 auto"}}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4}}>
+                <h2 style={{color:OLIVE,fontWeight:"normal",fontSize:20,margin:0}}>Daily Command Centre</h2>
+                <button onClick={loadCommandCentre} style={{background:OLIVE_LIGHT,color:OLIVE,border:"1px solid "+OLIVE_MID,borderRadius:7,padding:"5px 12px",cursor:"pointer",fontSize:12,fontFamily:"Georgia, serif"}}>{cmdLoading?"Loading...":"Refresh"}</button>
+              </div>
+              <p style={{color:MUTED,fontSize:13,marginTop:0,marginBottom:isAfter4pm?20:8}}>
+                {dayName} so far, vs yesterday.
+              </p>
+              {!isAfter4pm&&(
+                <div style={{background:OLIVE_LIGHT,borderRadius:8,padding:"10px 14px",marginBottom:20,fontSize:12,color:OLIVE,display:"flex",alignItems:"center",gap:8}}>
+                  <span style={{fontSize:14}}>⏱</span>
+                  <span><strong>In progress</strong> — numbers below are partial and will firm up after 4pm once today's trading is mostly done.</span>
+                </div>
+              )}
+
+              {/* TOP KPI BAR */}
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(130px, 1fr))",gap:10,marginBottom:20}}>
+                <div style={{background:WHITE,borderRadius:10,padding:"14px 16px"}}>
+                  <div style={{fontSize:10,color:MUTED,letterSpacing:1,marginBottom:4}}>REVENUE</div>
+                  <div style={{fontSize:19,fontWeight:"bold",color:OLIVE}}>{fmtMoneyZero(todayRevenue)}</div>
+                  <TrendArrow value={revChange} goodIsUp={true} />
+                </div>
+                <div style={{background:WHITE,borderRadius:10,padding:"14px 16px"}}>
+                  <div style={{fontSize:10,color:MUTED,letterSpacing:1,marginBottom:4}}>TRANSACTIONS</div>
+                  <div style={{fontSize:19,fontWeight:"bold",color:OLIVE}}>{todayTransactions}</div>
+                  <TrendArrow value={cmdYesterday?pctChange(todayTransactions,cmdYesterday.transactions):null} goodIsUp={true} />
+                </div>
+                <div style={{background:WHITE,borderRadius:10,padding:"14px 16px"}}>
+                  <div style={{fontSize:10,color:MUTED,letterSpacing:1,marginBottom:4}}>AVG SPEND</div>
+                  <div style={{fontSize:19,fontWeight:"bold",color:OLIVE}}>{fmtMoneyZero(todayAvgSpend)}</div>
+                  <TrendArrow value={avgChange} goodIsUp={true} />
+                </div>
+                <div style={{background:WHITE,borderRadius:10,padding:"14px 16px"}}>
+                  <div style={{fontSize:10,color:MUTED,letterSpacing:1,marginBottom:4}}>LABOUR %</div>
+                  <div style={{fontSize:19,fontWeight:"bold",color:statusColor(todayLabourPct,30,35,true)}}>{todayLabourPct!=null?todayLabourPct.toFixed(1)+"%":"—"}</div>
+                  <TrendArrow value={labChange} goodIsUp={false} />
+                </div>
+                <div style={{background:WHITE,borderRadius:10,padding:"14px 16px"}}>
+                  <div style={{fontSize:10,color:MUTED,letterSpacing:1,marginBottom:4}}>COGS TARGET</div>
+                  <div style={{fontSize:19,fontWeight:"bold",color:OLIVE}}>{targetCogs?targetCogs.toFixed(1)+"%":"—"}</div>
+                  <div style={{fontSize:10,color:MUTED}}>from recipes</div>
+                </div>
+                <div style={{background:WHITE,borderRadius:10,padding:"14px 16px"}}>
+                  <div style={{fontSize:10,color:MUTED,letterSpacing:1,marginBottom:4}}>LABOUR COST</div>
+                  <div style={{fontSize:19,fontWeight:"bold",color:RED}}>{fmtMoneyZero(todayLabourTotal)}</div>
+                  <div style={{fontSize:10,color:MUTED}}>wages + super</div>
+                </div>
+              </div>
+
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1.4fr",gap:16,marginBottom:16}}>
+                {/* LEFT: STORY */}
+                <div style={{background:WHITE,borderRadius:10,padding:18}}>
+                  <div style={{fontSize:11,color:MUTED,letterSpacing:1,marginBottom:12}}>TODAY'S STORY</div>
+                  <div style={{fontSize:13,color:TEXT,lineHeight:1.7,marginBottom:16}}>
+                    {dayName} revenue {isAfter4pm?"finished around":"is tracking at"} <strong>{fmtMoneyZero(todayRevenue)}</strong>
+                    {revChange!=null?(revChange>=0?", up "+revChange.toFixed(1)+"% on yesterday":", down "+Math.abs(revChange).toFixed(1)+"% on yesterday"):""}.
+                    {" "}{todayLabourPct!=null && <span>Labour is sitting at <strong>{todayLabourPct.toFixed(1)}%</strong> of sales so far.</span>}
+                    {" "}{!isAfter4pm && <span>Check back after 4pm for a fuller picture once most of today's trade is in.</span>}
+                  </div>
+                  <div style={{fontSize:10,color:MUTED,letterSpacing:1,marginBottom:8}}>TODAY VS YESTERDAY — HOURLY</div>
+                  <div style={{display:"flex",alignItems:"flex-end",gap:3,height:90}}>
+                    {(() => {
+                      const todayHourly = cmdToday&&cmdToday.hourly ? cmdToday.hourly : {};
+                      const yestHourly = cmdYesterday&&cmdYesterday.hourly ? cmdYesterday.hourly : {};
+                      const allHours = Array.from({length:14},(_,i)=>i+6); // 6am-7pm
+                      const maxVal = Math.max(...allHours.map(h=>Math.max((todayHourly[h]&&todayHourly[h].revenue)||0,(yestHourly[h]&&yestHourly[h].revenue)||0)),1);
+                      return allHours.map(h=>{
+                        const tVal = (todayHourly[h]&&todayHourly[h].revenue)||0;
+                        const yVal = (yestHourly[h]&&yestHourly[h].revenue)||0;
+                        return (
+                          <div key={h} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"flex-end",height:"100%",gap:1}}>
+                            <div style={{display:"flex",alignItems:"flex-end",gap:1,height:70,width:"100%"}}>
+                              <div style={{flex:1,height:Math.max((tVal/maxVal)*70,tVal>0?3:0),background:OLIVE,borderRadius:2}}></div>
+                              <div style={{flex:1,height:Math.max((yVal/maxVal)*70,yVal>0?3:0),background:OLIVE_MID,borderRadius:2,opacity:0.5}}></div>
+                            </div>
+                            <div style={{fontSize:8,color:MUTED}}>{h}</div>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                  <div style={{fontSize:10,color:MUTED,marginTop:10}}><span style={{color:OLIVE}}>■</span> Today &nbsp; <span style={{color:OLIVE_MID}}>■</span> Yesterday</div>
+                </div>
+
+                {/* RIGHT: WATCHLIST */}
+                <div style={{background:WHITE,borderRadius:10,padding:18}}>
+                  <div style={{fontSize:11,color:MUTED,letterSpacing:1,marginBottom:12}}>WATCHLIST</div>
+                  {watchlist.length===0?(
+                    <div style={{textAlign:"center",padding:"24px 0"}}>
+                      <div style={{fontSize:32,marginBottom:8}}>✓</div>
+                      <div style={{color:GREEN,fontWeight:"bold",fontSize:14}}>{isAfter4pm?"All metrics in healthy range":"Nothing flagged yet"}</div>
+                      <div style={{color:MUTED,fontSize:12,marginTop:4}}>{isAfter4pm?"No action needed today.":"Check back after 4pm."}</div>
+                    </div>
+                  ):(
+                    watchlist.map((w,i)=>(
+                      <div key={i} style={{display:"flex",gap:10,padding:"10px 0",borderBottom:i<watchlist.length-1?"1px solid "+OLIVE_LIGHT:"none"}}>
+                        <div style={{width:24,height:24,borderRadius:12,background:w.severity===3?RED:AMBER,color:WHITE,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:"bold",flexShrink:0}}>{i+1}</div>
+                        <div>
+                          <div style={{fontSize:13,fontWeight:"bold",color:TEXT}}>{w.title}</div>
+                          <div style={{fontSize:12,color:MUTED,marginTop:2}}>{w.detail}</div>
+                          <div style={{fontSize:12,color:OLIVE,marginTop:4}}>→ {w.fix}</div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* BOTTOM: TODAY VS YESTERDAY TABLE */}
+              <div style={{background:WHITE,borderRadius:10,padding:16}}>
+                <div style={{fontSize:11,color:MUTED,letterSpacing:1,marginBottom:12}}>TODAY VS YESTERDAY</div>
+                <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+                  <thead>
+                    <tr style={{borderBottom:"2px solid "+OLIVE_LIGHT}}>
+                      <th style={{textAlign:"left",padding:"6px 4px",color:MUTED,fontWeight:"normal",fontSize:11}}>METRIC</th>
+                      <th style={{textAlign:"right",padding:"6px 4px",color:MUTED,fontWeight:"normal",fontSize:11}}>TODAY ({SHORT[todayIdx]})</th>
+                      <th style={{textAlign:"right",padding:"6px 4px",color:MUTED,fontWeight:"normal",fontSize:11}}>YESTERDAY ({SHORT[(todayIdx-1+7)%7]})</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr style={{borderBottom:"1px solid "+OLIVE_LIGHT}}>
+                      <td style={{padding:"8px 4px",color:TEXT}}>Revenue</td>
+                      <td style={{padding:"8px 4px",textAlign:"right",fontWeight:"bold"}}>{fmtMoneyZero(todayRevenue)}</td>
+                      <td style={{padding:"8px 4px",textAlign:"right",color:MUTED}}>{yestRevenue!=null?fmtMoneyZero(yestRevenue):"—"}</td>
+                    </tr>
+                    <tr style={{borderBottom:"1px solid "+OLIVE_LIGHT}}>
+                      <td style={{padding:"8px 4px",color:TEXT}}>Transactions</td>
+                      <td style={{padding:"8px 4px",textAlign:"right",fontWeight:"bold"}}>{todayTransactions}</td>
+                      <td style={{padding:"8px 4px",textAlign:"right",color:MUTED}}>{cmdYesterday?cmdYesterday.transactions:"—"}</td>
+                    </tr>
+                    <tr style={{borderBottom:"1px solid "+OLIVE_LIGHT}}>
+                      <td style={{padding:"8px 4px",color:TEXT}}>Avg Spend</td>
+                      <td style={{padding:"8px 4px",textAlign:"right",fontWeight:"bold"}}>{fmtMoneyZero(todayAvgSpend)}</td>
+                      <td style={{padding:"8px 4px",textAlign:"right",color:MUTED}}>{cmdYesterday?fmtMoneyZero(cmdYesterday.avgSale):"—"}</td>
+                    </tr>
+                    <tr>
+                      <td style={{padding:"8px 4px",color:TEXT}}>Labour %</td>
+                      <td style={{padding:"8px 4px",textAlign:"right",fontWeight:"bold",color:statusColor(todayLabourPct,30,35,true)}}>{todayLabourPct!=null?todayLabourPct.toFixed(1)+"%":"—"}</td>
+                      <td style={{padding:"8px 4px",textAlign:"right",color:MUTED}}>{yestLabourPct!=null?yestLabourPct.toFixed(1)+"%":"—"}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* TODAY */}
         {view==="today"&&(
           <div style={{maxWidth:520,margin:"0 auto"}}>
@@ -371,16 +612,6 @@ export default function App() {
             <div style={{background:WHITE,borderRadius:10,padding:16,marginBottom:14}}>
               <div style={{fontSize:11,color:MUTED,letterSpacing:1,marginBottom:10}}>HOW ARE YOU FEELING?</div>
               <div style={{display:"flex",gap:10}}>{MOODS.map(m=>(<button key={m} onClick={()=>setDiary(p=>({...p,[DAYS[todayIdx]]:{...p[DAYS[todayIdx]],mood:todayEntry.mood===m?"":m}}))} style={{fontSize:22,background:todayEntry.mood===m?OLIVE_LIGHT:"transparent",border:"1px solid "+(todayEntry.mood===m?OLIVE:OLIVE_LIGHT),borderRadius:8,width:42,height:42,cursor:"pointer"}}>{m}</button>))}</div>
-            </div>
-            <div style={{background:WHITE,borderRadius:10,padding:16,marginBottom:14}}>
-              <div style={{fontSize:11,color:MUTED,letterSpacing:1,marginBottom:12}}>TODAY'S BUSINESS SNAPSHOT</div>
-              <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-                <SC label="REVENUE" value={fmtMoneyZero(todayBiz.revenue)} />
-                <SC label="COGS" value={fmtMoneyZero(todayBiz.cogs)} />
-                <SC label="PROFIT" value={num(todayBiz.revenue)>0?fmtMoneyZero(num(todayBiz.revenue)-num(todayBiz.cogs)):"—"} color={num(todayBiz.revenue)-num(todayBiz.cogs)>=0?GREEN:RED} />
-                <SC label="MARGIN" value={num(todayBiz.revenue)>0?((num(todayBiz.revenue)-num(todayBiz.cogs))/num(todayBiz.revenue)*100).toFixed(1)+"%":"—"} color={OLIVE} />
-              </div>
-              <div style={{marginTop:10,fontSize:12,color:MUTED}}>{todayBiz.sales?todayBiz.sales+" transactions":"No transactions"} <span style={{color:OLIVE,cursor:"pointer"}} onClick={()=>setView("business")}> Update</span></div>
             </div>
             <div style={{background:WHITE,borderRadius:10,padding:16,marginBottom:14}}>
               <div style={{fontSize:11,color:MUTED,letterSpacing:1,marginBottom:12}}>TODAY'S TASKS</div>
