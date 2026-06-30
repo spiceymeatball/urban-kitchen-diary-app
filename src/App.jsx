@@ -141,6 +141,7 @@ export default function App() {
   const [xeroTenant, setXeroTenant] = useState(null);
   const [xeroLoading, setXeroLoading] = useState(false);
   const [xeroError, setXeroError] = useState("");
+  const xeroFileRef = useRef();
   const [calView, setCalView] = useState("month");
   const [calMonth, setCalMonth] = useState(new Date());
   const [calWeek, setCalWeek] = useState(new Date());
@@ -244,6 +245,71 @@ export default function App() {
       setXeroData(data);
     } catch(e) { setXeroError("Xero error: "+e.message); }
     setXeroLoading(false);
+  };
+
+  const handleXeroCSV = e => {
+    const file = e.target.files[0]; if(!file) return;
+    setXeroError("");
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const text = ev.target.result;
+        const lines = text.split("\n").map(l=>l.split(",").map(c=>c.replace(/^"|"$/g,"").trim()));
+
+        // Find the last numeric column (the period total) by scanning header-ish rows
+        let dataCol = -1;
+        for(let i=0;i<Math.min(10,lines.length);i++){
+          for(let c=lines[i].length-1;c>=1;c--){
+            if(lines[i][c] && /[\d]/.test(lines[i][c].replace(/[^0-9.\-]/g,""))){ continue; }
+          }
+        }
+        // Simpler approach: use the last non-empty column across the whole sheet as the value column
+        const maxCols = Math.max(...lines.map(l=>l.length));
+        let valueCol = maxCols-1;
+
+        const parseNum = v => {
+          if(!v) return 0;
+          const cleaned = v.replace(/[$,]/g,"").replace(/^\((.*)\)$/,"-$1").trim();
+          const n = parseFloat(cleaned);
+          return isNaN(n)?0:n;
+        };
+
+        const findSectionTotal = (keywords) => {
+          for(let i=0;i<lines.length;i++){
+            const label = (lines[i][0]||"").toLowerCase();
+            const isTotalRow = label.startsWith("total ");
+            if(isTotalRow && keywords.some(k=>label.includes(k))){
+              return Math.abs(parseNum(lines[i][valueCol]));
+            }
+          }
+          return null;
+        };
+
+        const revenue = findSectionTotal(["income","revenue","trading income","sales"]);
+        const cogs = findSectionTotal(["cost of sales","cost of goods","cogs"]);
+        const expenses = findSectionTotal(["operating expenses","expenses"]);
+
+        if(revenue===null){
+          setXeroError("Could not find a Total Income row in this CSV — check it's a standard Xero P&L export.");
+          return;
+        }
+
+        const cogsVal = cogs||0;
+        const expVal = expenses||0;
+        const grossProfit = revenue - cogsVal;
+        const netProfit = revenue - cogsVal - expVal;
+        const grossMargin = revenue>0 ? ((grossProfit/revenue)*100).toFixed(1) : "0";
+
+        setXeroData({
+          revenue, cogs:cogsVal, expenses:expVal, grossProfit, netProfit, grossMargin,
+          fromDate:"Imported", toDate:new Date().toLocaleDateString("en-AU"), source:"csv"
+        });
+      } catch(err){
+        setXeroError("Could not read this file. Make sure it's a CSV exported from Xero's Profit & Loss report.");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value="";
   };
 
   // Read Xero token from URL
@@ -451,7 +517,7 @@ export default function App() {
               detail:"Today is "+Math.abs(revChange).toFixed(1)+"% behind yesterday ("+fmtMoneyZero(todayRevenue)+" vs "+fmtMoneyZero(yestRevenue)+").",
               fix:"Worth checking if this is a one-off quiet day or part of a pattern — review tomorrow's Command tab."});
           }
-          if(avgChange!=null && avgChange < -10 && isAfter4pm){
+          if(avgChange!=null && avgChange < -10 && isAfter4pm && cmdYesterday){
             watchlist.push({severity:2, title:"Average spend dropping today",
               detail:"Avg sale today is "+fmtMoneyZero(todayAvgSpend)+" vs "+fmtMoneyZero(cmdYesterday.avgSale)+" yesterday.",
               fix:"Consider an upsell prompt at the counter, or check if a high-margin item is out of stock."});
@@ -680,12 +746,11 @@ export default function App() {
             </div>
             <div style={{background:WHITE,borderRadius:10,padding:16,marginBottom:18,border:"1px solid "+OLIVE_LIGHT}}>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-                <div style={{fontSize:11,color:MUTED,letterSpacing:1}}>XERO - THIS MONTH'S P&L</div>
-                {xeroToken
-                  ?<button onClick={()=>fetchXeroData(xeroToken,xeroTenant)} style={{background:OLIVE_LIGHT,color:OLIVE,border:"1px solid "+OLIVE_MID,borderRadius:7,padding:"4px 12px",cursor:"pointer",fontSize:12,fontFamily:"Georgia, serif"}}>{xeroLoading?"Loading...":"Refresh"}</button>
-                  :<button onClick={()=>{ window.location.href="https://urban-kitchen-diary-app.vercel.app/api/xero-auth"; }} style={{background:OLIVE,color:WHITE,border:"none",borderRadius:7,padding:"6px 14px",cursor:"pointer",fontSize:12,fontFamily:"Georgia, serif"}}>Connect Xero</button>
-                }
+                <div style={{fontSize:11,color:MUTED,letterSpacing:1}}>XERO - PROFIT & LOSS</div>
+                <button onClick={()=>xeroFileRef.current.click()} style={{background:OLIVE,color:WHITE,border:"none",borderRadius:7,padding:"6px 14px",cursor:"pointer",fontSize:12,fontFamily:"Georgia, serif"}}>Upload P&L CSV</button>
+                <input ref={xeroFileRef} type="file" accept=".csv" onChange={handleXeroCSV} style={{display:"none"}} />
               </div>
+              {!xeroData&&<div style={{fontSize:11,color:MUTED,marginBottom:8}}>In Xero: Accounting → Reports → Profit and Loss → Export → CSV, then upload it here.</div>}
               {xeroError&&<div style={{color:RED,fontSize:12,marginBottom:8}}>{xeroError}</div>}
               {xeroData?(
                 <div>
@@ -697,9 +762,9 @@ export default function App() {
                     <SC label="NET PROFIT" value={fmtMoneyZero(xeroData.netProfit)} color={xeroData.netProfit>=0?GREEN:RED} />
                     <SC label="GROSS MARGIN" value={xeroData.grossMargin+"%"} color={parseFloat(xeroData.grossMargin)>=60?GREEN:parseFloat(xeroData.grossMargin)>=40?AMBER:RED} />
                   </div>
-                  <div style={{fontSize:11,color:MUTED}}>{xeroData.fromDate} to {xeroData.toDate}</div>
+                  <div style={{fontSize:11,color:MUTED}}>{xeroData.source==="csv"?"From uploaded CSV · "+xeroData.toDate:xeroData.fromDate+" to "+xeroData.toDate}</div>
                 </div>
-              ):(!xeroLoading&&!xeroToken&&<div style={{color:MUTED,fontSize:13}}>Click Connect Xero to sync P&L data.</div>)}
+              ):(!xeroLoading&&<div style={{color:MUTED,fontSize:13}}>No P&L loaded yet. Export from Xero and upload above.</div>)}
             </div>
             <div style={{display:"flex",gap:10,marginBottom:18,flexWrap:"wrap"}}>
               <SC label="WEEK REVENUE" value={fmtMoneyZero(weekRevenue)} />
