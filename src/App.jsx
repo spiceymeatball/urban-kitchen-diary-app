@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import * as XLSX from "xlsx";
 
 const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 const SHORT = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
@@ -247,68 +248,80 @@ export default function App() {
     setXeroLoading(false);
   };
 
+  const parseXeroRows = (lines) => {
+    const maxCols = Math.max(...lines.map(l=>l.length));
+    let valueCol = maxCols-1;
+
+    const parseNum = v => {
+      if(v===undefined||v===null||v==="") return 0;
+      const str = String(v);
+      const cleaned = str.replace(/[$,]/g,"").replace(/^\((.*)\)$/,"-$1").trim();
+      const n = parseFloat(cleaned);
+      return isNaN(n)?0:n;
+    };
+
+    const findSectionTotal = (keywords) => {
+      for(let i=0;i<lines.length;i++){
+        const label = String(lines[i][0]||"").toLowerCase();
+        const isTotalRow = label.startsWith("total ");
+        if(isTotalRow && keywords.some(k=>label.includes(k))){
+          return Math.abs(parseNum(lines[i][valueCol]));
+        }
+      }
+      return null;
+    };
+
+    const revenue = findSectionTotal(["income","revenue","trading income","sales"]);
+    const cogs = findSectionTotal(["cost of sales","cost of goods","cogs"]);
+    const expenses = findSectionTotal(["operating expenses","expenses"]);
+
+    if(revenue===null) return {error:"Could not find a Total Income row in this file — check it's a standard Xero P&L export."};
+
+    const cogsVal = cogs||0;
+    const expVal = expenses||0;
+    const grossProfit = revenue - cogsVal;
+    const netProfit = revenue - cogsVal - expVal;
+    const grossMargin = revenue>0 ? ((grossProfit/revenue)*100).toFixed(1) : "0";
+
+    return { revenue, cogs:cogsVal, expenses:expVal, grossProfit, netProfit, grossMargin,
+      fromDate:"Imported", toDate:new Date().toLocaleDateString("en-AU"), source:"file" };
+  };
+
   const handleXeroCSV = e => {
     const file = e.target.files[0]; if(!file) return;
     setXeroError("");
-    const reader = new FileReader();
-    reader.onload = ev => {
-      try {
-        const text = ev.target.result;
-        const lines = text.split("\n").map(l=>l.split(",").map(c=>c.replace(/^"|"$/g,"").trim()));
+    const isExcel = /\.(xlsx|xls)$/i.test(file.name);
 
-        // Find the last numeric column (the period total) by scanning header-ish rows
-        let dataCol = -1;
-        for(let i=0;i<Math.min(10,lines.length);i++){
-          for(let c=lines[i].length-1;c>=1;c--){
-            if(lines[i][c] && /[\d]/.test(lines[i][c].replace(/[^0-9.\-]/g,""))){ continue; }
-          }
+    if(isExcel){
+      const reader = new FileReader();
+      reader.onload = ev => {
+        try {
+          const wb = XLSX.read(ev.target.result, {type:"array"});
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:""});
+          const result = parseXeroRows(rows);
+          if(result.error){ setXeroError(result.error); return; }
+          setXeroData(result);
+        } catch(err){
+          setXeroError("Could not read this Excel file. Make sure it's a Profit & Loss export from Xero.");
         }
-        // Simpler approach: use the last non-empty column across the whole sheet as the value column
-        const maxCols = Math.max(...lines.map(l=>l.length));
-        let valueCol = maxCols-1;
-
-        const parseNum = v => {
-          if(!v) return 0;
-          const cleaned = v.replace(/[$,]/g,"").replace(/^\((.*)\)$/,"-$1").trim();
-          const n = parseFloat(cleaned);
-          return isNaN(n)?0:n;
-        };
-
-        const findSectionTotal = (keywords) => {
-          for(let i=0;i<lines.length;i++){
-            const label = (lines[i][0]||"").toLowerCase();
-            const isTotalRow = label.startsWith("total ");
-            if(isTotalRow && keywords.some(k=>label.includes(k))){
-              return Math.abs(parseNum(lines[i][valueCol]));
-            }
-          }
-          return null;
-        };
-
-        const revenue = findSectionTotal(["income","revenue","trading income","sales"]);
-        const cogs = findSectionTotal(["cost of sales","cost of goods","cogs"]);
-        const expenses = findSectionTotal(["operating expenses","expenses"]);
-
-        if(revenue===null){
-          setXeroError("Could not find a Total Income row in this CSV — check it's a standard Xero P&L export.");
-          return;
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      const reader = new FileReader();
+      reader.onload = ev => {
+        try {
+          const text = ev.target.result;
+          const lines = text.split("\n").map(l=>l.split(",").map(c=>c.replace(/^"|"$/g,"").trim()));
+          const result = parseXeroRows(lines);
+          if(result.error){ setXeroError(result.error); return; }
+          setXeroData(result);
+        } catch(err){
+          setXeroError("Could not read this file. Make sure it's a CSV exported from Xero's Profit & Loss report.");
         }
-
-        const cogsVal = cogs||0;
-        const expVal = expenses||0;
-        const grossProfit = revenue - cogsVal;
-        const netProfit = revenue - cogsVal - expVal;
-        const grossMargin = revenue>0 ? ((grossProfit/revenue)*100).toFixed(1) : "0";
-
-        setXeroData({
-          revenue, cogs:cogsVal, expenses:expVal, grossProfit, netProfit, grossMargin,
-          fromDate:"Imported", toDate:new Date().toLocaleDateString("en-AU"), source:"csv"
-        });
-      } catch(err){
-        setXeroError("Could not read this file. Make sure it's a CSV exported from Xero's Profit & Loss report.");
-      }
-    };
-    reader.readAsText(file);
+      };
+      reader.readAsText(file);
+    }
     e.target.value="";
   };
 
@@ -747,10 +760,10 @@ export default function App() {
             <div style={{background:WHITE,borderRadius:10,padding:16,marginBottom:18,border:"1px solid "+OLIVE_LIGHT}}>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
                 <div style={{fontSize:11,color:MUTED,letterSpacing:1}}>XERO - PROFIT & LOSS</div>
-                <button onClick={()=>xeroFileRef.current.click()} style={{background:OLIVE,color:WHITE,border:"none",borderRadius:7,padding:"6px 14px",cursor:"pointer",fontSize:12,fontFamily:"Georgia, serif"}}>Upload P&L CSV</button>
-                <input ref={xeroFileRef} type="file" accept=".csv" onChange={handleXeroCSV} style={{display:"none"}} />
+                <button onClick={()=>xeroFileRef.current.click()} style={{background:OLIVE,color:WHITE,border:"none",borderRadius:7,padding:"6px 14px",cursor:"pointer",fontSize:12,fontFamily:"Georgia, serif"}}>Upload P&L</button>
+                <input ref={xeroFileRef} type="file" accept=".csv,.xlsx,.xls" onChange={handleXeroCSV} style={{display:"none"}} />
               </div>
-              {!xeroData&&<div style={{fontSize:11,color:MUTED,marginBottom:8}}>In Xero: Accounting → Reports → Profit and Loss → Export → CSV, then upload it here.</div>}
+              {!xeroData&&<div style={{fontSize:11,color:MUTED,marginBottom:8}}>In Xero: Reports → Profit and Loss → set your date range → Export → Excel, then upload it here.</div>}
               {xeroError&&<div style={{color:RED,fontSize:12,marginBottom:8}}>{xeroError}</div>}
               {xeroData?(
                 <div>
@@ -762,7 +775,7 @@ export default function App() {
                     <SC label="NET PROFIT" value={fmtMoneyZero(xeroData.netProfit)} color={xeroData.netProfit>=0?GREEN:RED} />
                     <SC label="GROSS MARGIN" value={xeroData.grossMargin+"%"} color={parseFloat(xeroData.grossMargin)>=60?GREEN:parseFloat(xeroData.grossMargin)>=40?AMBER:RED} />
                   </div>
-                  <div style={{fontSize:11,color:MUTED}}>{xeroData.source==="csv"?"From uploaded CSV · "+xeroData.toDate:xeroData.fromDate+" to "+xeroData.toDate}</div>
+                  <div style={{fontSize:11,color:MUTED}}>{xeroData.source==="file"?"From uploaded file · "+xeroData.toDate:xeroData.fromDate+" to "+xeroData.toDate}</div>
                 </div>
               ):(!xeroLoading&&<div style={{color:MUTED,fontSize:13}}>No P&L loaded yet. Export from Xero and upload above.</div>)}
             </div>
