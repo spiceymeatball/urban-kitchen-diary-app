@@ -150,6 +150,8 @@ export default function App() {
   const [cmdLoading, setCmdLoading] = useState(false);
   const [cmdToday, setCmdToday] = useState(null);
   const [cmdYesterday, setCmdYesterday] = useState(null);
+  const bizFileRef = useRef();
+  const importRef = useRef();
 
   useEffect(() => {
     (async () => {
