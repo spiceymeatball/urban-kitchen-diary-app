@@ -461,15 +461,15 @@ export default function App() {
               <table style={{borderCollapse:"collapse",fontSize:12,minWidth:1180}}>
                 <thead>
                   <tr>
-                    <th rowSpan={2} style={{padding:"6px 8px",textAlign:"left",color:OLIVE,fontSize:11,minWidth:100}}></th>
+                    <th rowSpan={2} style={{padding:"6px 8px",textAlign:"left",color:OLIVE,fontSize:11,minWidth:100,position:"sticky",left:0,background:WHITE,zIndex:2}}></th>
                     {rosterWeekDates.map((d,i)=>(
                       <th key={i} colSpan={2} style={{padding:"6px 8px",textAlign:"center",color:OLIVE,fontSize:11,borderRight:"1px solid "+OLIVE_LIGHT}}>
                         <div>{SHORT[i]}</div>
                         <div style={{color:MUTED,fontWeight:"normal"}}>{d.getDate()}/{d.getMonth()+1}</div>
                       </th>
                     ))}
-                    <th rowSpan={2} style={{padding:"6px 8px",textAlign:"center",color:OLIVE,fontSize:11}}>Total Hrs</th>
-                    <th rowSpan={2} style={{width:26}}></th>
+                    <th rowSpan={2} style={{padding:"6px 8px",textAlign:"center",color:OLIVE,fontSize:11,position:"sticky",right:26,background:WHITE,zIndex:2,borderLeft:"1px solid "+OLIVE_LIGHT}}>Total Hrs</th>
+                    <th rowSpan={2} style={{width:26,position:"sticky",right:0,background:WHITE,zIndex:2}}></th>
                   </tr>
                   <tr>
                     {rosterWeekDates.map((_,i)=>(
@@ -483,7 +483,7 @@ export default function App() {
                 <tbody>
                   {roster.employees.map(emp=>(
                     <tr key={emp.id} style={{borderTop:"1px solid "+OLIVE_LIGHT}}>
-                      <td style={{padding:"4px 8px"}}>
+                      <td style={{padding:"4px 8px",position:"sticky",left:0,background:WHITE,zIndex:1}}>
                         <input value={emp.name} onChange={e=>rosterRenameEmployee(emp.id,e.target.value)} style={{width:90,background:"transparent",border:"none",fontFamily:"Georgia, serif",fontSize:13,fontWeight:"bold",color:TEXT,outline:"none"}} />
                       </td>
                       {rosterWeekDates.map((_,di)=>{
@@ -501,17 +501,17 @@ export default function App() {
                           </Fragment>
                         );
                       })}
-                      <td style={{padding:"4px 8px",textAlign:"center",fontWeight:"bold",color:OLIVE,fontSize:14}}>{rosterRowTotal(emp.id).toFixed(2)}</td>
-                      <td style={{textAlign:"center"}}><button onClick={()=>rosterRemoveEmployee(emp.id)} style={{background:"none",border:"none",color:OLIVE_LIGHT,cursor:"pointer",fontSize:16}}>x</button></td>
+                      <td style={{padding:"4px 8px",textAlign:"center",fontWeight:"bold",color:OLIVE,fontSize:14,position:"sticky",right:26,background:WHITE,zIndex:1,borderLeft:"1px solid "+OLIVE_LIGHT}}>{rosterRowTotal(emp.id).toFixed(2)}</td>
+                      <td style={{textAlign:"center",position:"sticky",right:0,background:WHITE,zIndex:1}}><button onClick={()=>rosterRemoveEmployee(emp.id)} style={{background:"none",border:"none",color:OLIVE_LIGHT,cursor:"pointer",fontSize:16}}>x</button></td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot>
                   <tr style={{borderTop:"2px solid "+OLIVE_LIGHT}}>
-                    <td style={{padding:"6px 8px",fontSize:11,color:MUTED}}>Day total</td>
+                    <td style={{padding:"6px 8px",fontSize:11,color:MUTED,position:"sticky",left:0,background:WHITE,zIndex:1}}>Day total</td>
                     {rosterWeekDates.map((_,di)=>(<td key={di} colSpan={2} style={{padding:"6px 8px",textAlign:"center",fontSize:12,color:MUTED}}>{rosterDayTotal(di).toFixed(2)}</td>))}
-                    <td style={{padding:"6px 8px",textAlign:"center",fontWeight:"bold",color:OLIVE,fontSize:14}}>{rosterGrandTotal.toFixed(2)}</td>
-                    <td />
+                    <td style={{padding:"6px 8px",textAlign:"center",fontWeight:"bold",color:OLIVE,fontSize:14,position:"sticky",right:26,background:WHITE,zIndex:1,borderLeft:"1px solid "+OLIVE_LIGHT}}>{rosterGrandTotal.toFixed(2)}</td>
+                    <td style={{position:"sticky",right:0,background:WHITE,zIndex:1}} />
                   </tr>
                 </tfoot>
               </table>
