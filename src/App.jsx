@@ -31,8 +31,8 @@ const initWages = () => ({
 });
 
 const SK = {diary:"uk_diary",biz:"uk_biz",recipes:"uk_recipes",wages:"uk_wages",roster:"uk_roster"};
-const saveData = async (k,v) => { try { await window.storage.set(k,JSON.stringify(v)); } catch(e){} };
-const loadData = async (k,fb) => { try { const r=await window.storage.get(k); return r?JSON.parse(r.value):fb; } catch { return fb; } };
+const saveData = async (k,v) => { try { window.localStorage.setItem(k,JSON.stringify(v)); } catch(e){} };
+const loadData = async (k,fb) => { try { const r=window.localStorage.getItem(k); return r?JSON.parse(r):fb; } catch { return fb; } };
 
 const getMonday = d => { const x=new Date(d); const day=x.getDay(); x.setDate(x.getDate()+(day===0?-6:1-day)); x.setHours(0,0,0,0); return x; };
 const weekKeyOf = d => d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
