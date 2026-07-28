@@ -15,6 +15,7 @@ const fmtMoneyZero = v => { const n=parseFloat(v); if(isNaN(n)) return "—"; re
 const num = v => parseFloat(v)||0;
 const cogsColor = v => { const n=parseFloat(v)*(parseFloat(v)<=1?100:1); if(isNaN(n)) return MUTED; if(n<=30) return GREEN; if(n<=35) return AMBER; return RED; };
 const gpColor = v => { const n=parseFloat(v)*(parseFloat(v)<=1?100:1); if(isNaN(n)) return MUTED; if(n>=70) return GREEN; if(n>=65) return AMBER; return RED; };
+const laborPctColor = n => { if(n===null||isNaN(n)) return MUTED; if(n<=30) return GREEN; if(n<=35) return AMBER; return RED; };
 
 const initDiary = () => DAYS.reduce((a,d)=>({...a,[d]:{note:"",mood:"",tasks:[]}}),{});
 const initBiz = () => DAYS.reduce((a,d)=>({...a,[d]:{revenue:"",sales:"",cogs:""}}),{});
@@ -61,10 +62,12 @@ const ROSTER_SEED_ROWS = {
   "8":[["6.30",""],["",""],["7.30",""],["7",""],["",""],["7",""],["",""]],
 };
 const initRoster = () => {
-  const employees = ROSTER_NAMES.map((name,i)=>({id:String(i+1),name}));
+  const rateByName = {};
+  initWages().employees.forEach(e=>{ rateByName[e.name]=e.rate; });
+  const employees = ROSTER_NAMES.map((name,i)=>({id:String(i+1),name,role:"",rate:rateByName[name]||0}));
   const wk = {};
   employees.forEach(emp=>{ wk[emp.id] = (ROSTER_SEED_ROWS[emp.id]||Array.from({length:7},()=>["",""])).map(([start,finish])=>({start,finish})); });
-  return { employees, weeks: { [weekKeyOf(getMonday(new Date()))]: wk } };
+  return { employees, weeks: { [weekKeyOf(getMonday(new Date()))]: wk }, salesTargets: {} };
 };
 
 const ING = [
@@ -203,15 +206,43 @@ export default function App() {
     week[empId]=empCells;
     return {...p, weeks:{...p.weeks,[rosterWeekKey]:week}};
   });
-  const rosterAddEmployee = () => setRoster(p=>({...p, employees:[...p.employees,{id:Date.now().toString(),name:"New"}]}));
+  const rosterAddEmployee = () => setRoster(p=>({...p, employees:[...p.employees,{id:Date.now().toString(),name:"New",role:"",rate:0}]}));
   const rosterRemoveEmployee = id => setRoster(p=>({...p, employees:p.employees.filter(e=>e.id!==id)}));
   const rosterRenameEmployee = (id,name) => setRoster(p=>({...p, employees:p.employees.map(e=>e.id===id?{...e,name}:e)}));
+  const rosterSetEmployeeRole = (id,role) => setRoster(p=>({...p, employees:p.employees.map(e=>e.id===id?{...e,role}:e)}));
+  const rosterSetEmployeeRate = (id,rate) => setRoster(p=>({...p, employees:p.employees.map(e=>e.id===id?{...e,rate}:e)}));
   const rosterCellHours = c => shiftHours(c&&c.start,c&&c.finish);
+  const rosterCellIsLeave = c => !!(c&&c.start) && rosterCellHours(c)===0;
   const rosterRowTotal = empId => (rosterWeek[empId]||[]).reduce((s,c)=>s+rosterCellHours(c),0);
   const rosterDayTotal = dayIdx => roster.employees.reduce((s,emp)=>s+rosterCellHours(rosterCell(emp.id,dayIdx)),0);
   const rosterGrandTotal = roster.employees.reduce((s,emp)=>s+rosterRowTotal(emp.id),0);
+  const rosterCellCost = (emp,c) => rosterCellHours(c)*num(emp.rate);
+  const rosterRowCost = emp => (rosterWeek[emp.id]||[]).reduce((s,c)=>s+rosterCellCost(emp,c),0);
+  const rosterDayCost = dayIdx => roster.employees.reduce((s,emp)=>s+rosterCellCost(emp,rosterCell(emp.id,dayIdx)),0);
+  const rosterWeekCost = roster.employees.reduce((s,emp)=>s+rosterRowCost(emp),0);
   const rosterWeekDates = Array.from({length:7},(_,i)=>{const d=new Date(rosterWeekStart);d.setDate(d.getDate()+i);return d;});
   const rosterWeekLabel = rosterWeekStart.toLocaleDateString("en-AU",{day:"numeric",month:"short"})+" - "+new Date(rosterWeekStart.getTime()+6*86400000).toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric"});
+  const rosterSalesTargets = (roster.salesTargets&&roster.salesTargets[rosterWeekKey]) || Array.from({length:7},()=>"");
+  const rosterSetSalesTarget = (dayIdx,value) => setRoster(p=>{
+    const targets = [...((p.salesTargets&&p.salesTargets[rosterWeekKey])||Array.from({length:7},()=>""))];
+    targets[dayIdx]=value;
+    return {...p, salesTargets:{...(p.salesTargets||{}),[rosterWeekKey]:targets}};
+  });
+  const rosterDaySales = dayIdx => {
+    const ds = weekKeyOf(rosterWeekDates[dayIdx]);
+    const sq = squareByDate[ds];
+    if(sq&&sq.netSales>0) return {value:sq.netSales, actual:true};
+    return {value:num(rosterSalesTargets[dayIdx]), actual:false};
+  };
+  const rosterLaborPct = dayIdx => { const sales=rosterDaySales(dayIdx).value; return sales>0 ? (rosterDayCost(dayIdx)/sales*100) : null; };
+  const rosterCopyPreviousWeek = () => {
+    const prevMonday = new Date(rosterWeekStart); prevMonday.setDate(prevMonday.getDate()-7);
+    const prevKey = weekKeyOf(prevMonday);
+    const prevWeek = roster.weeks[prevKey];
+    if(!prevWeek){ alert("No roster found for the previous week."); return; }
+    if(!confirm("Copy last week's roster into "+rosterWeekLabel+"? This will overwrite this week's entries.")) return;
+    setRoster(p=>({...p, weeks:{...p.weeks,[rosterWeekKey]:JSON.parse(JSON.stringify(prevWeek))}}));
+  };
 
   const day = DAYS[selected];
   const entry = diary[day];
@@ -447,28 +478,31 @@ export default function App() {
         )}
 
         {/* ROSTER */}
-        {view==="roster"&&(
+        {view==="roster"&&(()=>{
+          rosterWeekDates.forEach(d=>{ if(d<=new Date()) fetchSquareForDate(weekKeyOf(d)); });
+          return (
           <div style={{maxWidth:1000,margin:"0 auto"}}>
             <h2 style={{color:OLIVE,fontWeight:"normal",fontSize:20,marginBottom:4}}>Roster</h2>
-            <p style={{color:MUTED,fontSize:13,marginTop:0,marginBottom:18}}>Enter a Start and Finish time for each day — hours are calculated automatically and totalled at the end of each row. Leave a code (e.g. AWAY) in Start with Finish blank for non-shift days.</p>
+            <p style={{color:MUTED,fontSize:13,marginTop:0,marginBottom:18}}>Enter a Start and Finish time for each day — hours, labor cost and cost-vs-sales are calculated automatically. Set a Role and Rate per person under their name. Type a code (e.g. AL, SICK, OFF) into Start with Finish blank to mark leave/unavailable days — those cells are highlighted.</p>
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,flexWrap:"wrap"}}>
               <button onClick={()=>setRosterWeekStart(d=>{const n=new Date(d);n.setDate(n.getDate()-7);return n;})} style={{background:OLIVE_LIGHT,border:"none",borderRadius:7,padding:"6px 14px",cursor:"pointer",color:OLIVE,fontFamily:"Georgia, serif"}}>←</button>
               <div style={{fontSize:15,color:OLIVE,fontWeight:"bold"}}>{rosterWeekLabel}</div>
               <button onClick={()=>setRosterWeekStart(d=>{const n=new Date(d);n.setDate(n.getDate()+7);return n;})} style={{background:OLIVE_LIGHT,border:"none",borderRadius:7,padding:"6px 14px",cursor:"pointer",color:OLIVE,fontFamily:"Georgia, serif"}}>→</button>
+              <button onClick={rosterCopyPreviousWeek} style={{background:WHITE,border:"1px solid "+OLIVE,color:OLIVE,borderRadius:7,padding:"6px 14px",cursor:"pointer",fontFamily:"Georgia, serif",fontSize:12}}>Copy Last Week</button>
               <button onClick={()=>setRosterWeekStart(getMonday(new Date()))} style={{marginLeft:"auto",background:WHITE,border:"1px solid "+OLIVE,color:OLIVE,borderRadius:7,padding:"6px 14px",cursor:"pointer",fontFamily:"Georgia, serif",fontSize:12}}>This Week</button>
             </div>
             <div style={{overflowX:"auto",background:WHITE,borderRadius:10,padding:12}}>
               <table style={{borderCollapse:"collapse",fontSize:12,minWidth:1180}}>
                 <thead>
                   <tr>
-                    <th rowSpan={2} style={{padding:"6px 8px",textAlign:"left",color:OLIVE,fontSize:11,minWidth:100,position:"sticky",left:0,background:WHITE,zIndex:2}}></th>
+                    <th rowSpan={2} style={{padding:"6px 8px",textAlign:"left",color:OLIVE,fontSize:11,minWidth:130,position:"sticky",left:0,background:WHITE,zIndex:2}}></th>
                     {rosterWeekDates.map((d,i)=>(
                       <th key={i} colSpan={2} style={{padding:"6px 8px",textAlign:"center",color:OLIVE,fontSize:11,borderRight:"1px solid "+OLIVE_LIGHT}}>
                         <div>{SHORT[i]}</div>
                         <div style={{color:MUTED,fontWeight:"normal"}}>{d.getDate()}/{d.getMonth()+1}</div>
                       </th>
                     ))}
-                    <th rowSpan={2} style={{padding:"6px 8px",textAlign:"center",color:OLIVE,fontSize:11,position:"sticky",right:26,background:WHITE,zIndex:2,borderLeft:"1px solid "+OLIVE_LIGHT}}>Total Hrs</th>
+                    <th rowSpan={2} style={{padding:"6px 8px",textAlign:"center",color:OLIVE,fontSize:11,position:"sticky",right:26,background:WHITE,zIndex:2,borderLeft:"1px solid "+OLIVE_LIGHT}}>Total</th>
                     <th rowSpan={2} style={{width:26,position:"sticky",right:0,background:WHITE,zIndex:2}}></th>
                   </tr>
                   <tr>
@@ -484,41 +518,82 @@ export default function App() {
                   {roster.employees.map(emp=>(
                     <tr key={emp.id} style={{borderTop:"1px solid "+OLIVE_LIGHT}}>
                       <td style={{padding:"4px 8px",position:"sticky",left:0,background:WHITE,zIndex:1}}>
-                        <input value={emp.name} onChange={e=>rosterRenameEmployee(emp.id,e.target.value)} style={{width:90,background:"transparent",border:"none",fontFamily:"Georgia, serif",fontSize:13,fontWeight:"bold",color:TEXT,outline:"none"}} />
+                        <input value={emp.name} onChange={e=>rosterRenameEmployee(emp.id,e.target.value)} style={{width:120,background:"transparent",border:"none",fontFamily:"Georgia, serif",fontSize:13,fontWeight:"bold",color:TEXT,outline:"none"}} />
+                        <div style={{display:"flex",gap:4,marginTop:2}}>
+                          <input value={emp.role||""} onChange={e=>rosterSetEmployeeRole(emp.id,e.target.value)} placeholder="Role" style={{width:68,background:"transparent",border:"none",fontFamily:"Georgia, serif",fontSize:10,color:MUTED,outline:"none"}} />
+                          <input value={emp.rate||""} onChange={e=>rosterSetEmployeeRate(emp.id,e.target.value)} placeholder="$/hr" style={{width:44,background:"transparent",border:"none",fontFamily:"Georgia, serif",fontSize:10,color:MUTED,outline:"none"}} />
+                        </div>
                       </td>
                       {rosterWeekDates.map((_,di)=>{
                         const c = rosterCell(emp.id,di);
                         const h = rosterCellHours(c);
+                        const isLeave = rosterCellIsLeave(c);
+                        const cellBg = isLeave ? "#f3e3c0" : OLIVE_LIGHT;
                         return (
                           <Fragment key={di}>
                             <td style={{padding:"4px 3px",textAlign:"center"}}>
-                              <input value={c.start} onChange={e=>rosterUpdateCell(emp.id,di,"start",e.target.value)} placeholder="—" style={{width:48,textAlign:"center",background:OLIVE_LIGHT,border:"none",borderRadius:5,fontFamily:"Georgia, serif",fontSize:12,color:TEXT,outline:"none",padding:"4px 2px",boxSizing:"border-box"}} />
+                              <input value={c.start} onChange={e=>rosterUpdateCell(emp.id,di,"start",e.target.value)} placeholder="—" style={{width:48,textAlign:"center",background:cellBg,border:"none",borderRadius:5,fontFamily:"Georgia, serif",fontSize:12,color:TEXT,outline:"none",padding:"4px 2px",boxSizing:"border-box"}} />
                             </td>
                             <td style={{padding:"4px 3px",textAlign:"center",borderRight:"1px solid "+OLIVE_LIGHT}}>
-                              <input value={c.finish} onChange={e=>rosterUpdateCell(emp.id,di,"finish",e.target.value)} placeholder="—" style={{width:48,textAlign:"center",background:OLIVE_LIGHT,border:"none",borderRadius:5,fontFamily:"Georgia, serif",fontSize:12,color:TEXT,outline:"none",padding:"4px 2px",boxSizing:"border-box"}} />
+                              <input value={c.finish} onChange={e=>rosterUpdateCell(emp.id,di,"finish",e.target.value)} placeholder="—" style={{width:48,textAlign:"center",background:cellBg,border:"none",borderRadius:5,fontFamily:"Georgia, serif",fontSize:12,color:TEXT,outline:"none",padding:"4px 2px",boxSizing:"border-box"}} />
                               {h>0&&<div style={{fontSize:9,color:OLIVE_MID,marginTop:2}}>{h.toFixed(2)}h</div>}
                             </td>
                           </Fragment>
                         );
                       })}
-                      <td style={{padding:"4px 8px",textAlign:"center",fontWeight:"bold",color:OLIVE,fontSize:14,position:"sticky",right:26,background:WHITE,zIndex:1,borderLeft:"1px solid "+OLIVE_LIGHT}}>{rosterRowTotal(emp.id).toFixed(2)}</td>
+                      <td style={{padding:"4px 8px",textAlign:"center",position:"sticky",right:26,background:WHITE,zIndex:1,borderLeft:"1px solid "+OLIVE_LIGHT}}>
+                        <div style={{fontWeight:"bold",color:OLIVE,fontSize:14}}>{rosterRowTotal(emp.id).toFixed(2)}</div>
+                        <div style={{fontSize:9,color:MUTED}}>{fmtMoney(rosterRowCost(emp))}</div>
+                      </td>
                       <td style={{textAlign:"center",position:"sticky",right:0,background:WHITE,zIndex:1}}><button onClick={()=>rosterRemoveEmployee(emp.id)} style={{background:"none",border:"none",color:OLIVE_LIGHT,cursor:"pointer",fontSize:16}}>x</button></td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot>
                   <tr style={{borderTop:"2px solid "+OLIVE_LIGHT}}>
-                    <td style={{padding:"6px 8px",fontSize:11,color:MUTED,position:"sticky",left:0,background:WHITE,zIndex:1}}>Day total</td>
+                    <td style={{padding:"6px 8px",fontSize:11,color:MUTED,position:"sticky",left:0,background:WHITE,zIndex:1}}>Day total (hrs)</td>
                     {rosterWeekDates.map((_,di)=>(<td key={di} colSpan={2} style={{padding:"6px 8px",textAlign:"center",fontSize:12,color:MUTED}}>{rosterDayTotal(di).toFixed(2)}</td>))}
                     <td style={{padding:"6px 8px",textAlign:"center",fontWeight:"bold",color:OLIVE,fontSize:14,position:"sticky",right:26,background:WHITE,zIndex:1,borderLeft:"1px solid "+OLIVE_LIGHT}}>{rosterGrandTotal.toFixed(2)}</td>
+                    <td style={{position:"sticky",right:0,background:WHITE,zIndex:1}} />
+                  </tr>
+                  <tr>
+                    <td style={{padding:"6px 8px",fontSize:11,color:MUTED,position:"sticky",left:0,background:WHITE,zIndex:1}}>Labor $</td>
+                    {rosterWeekDates.map((_,di)=>(<td key={di} colSpan={2} style={{padding:"6px 8px",textAlign:"center",fontSize:12,color:MUTED}}>{fmtMoney(rosterDayCost(di))}</td>))}
+                    <td style={{padding:"6px 8px",textAlign:"center",fontWeight:"bold",color:OLIVE,fontSize:14,position:"sticky",right:26,background:WHITE,zIndex:1,borderLeft:"1px solid "+OLIVE_LIGHT}}>{fmtMoney(rosterWeekCost)}</td>
+                    <td style={{position:"sticky",right:0,background:WHITE,zIndex:1}} />
+                  </tr>
+                  <tr>
+                    <td style={{padding:"6px 8px",fontSize:11,color:MUTED,position:"sticky",left:0,background:WHITE,zIndex:1}}>Sales</td>
+                    {rosterWeekDates.map((_,di)=>{
+                      const s = rosterDaySales(di);
+                      return (
+                        <td key={di} colSpan={2} style={{padding:"4px 6px",textAlign:"center"}}>
+                          {s.actual
+                            ? <span style={{fontSize:12,color:GREEN,fontWeight:"bold"}}>{fmtMoney(s.value)}</span>
+                            : <input value={rosterSalesTargets[di]} onChange={e=>rosterSetSalesTarget(di,e.target.value)} placeholder="est." style={{width:60,textAlign:"center",background:OLIVE_LIGHT,border:"none",borderRadius:5,fontFamily:"Georgia, serif",fontSize:11,color:MUTED,outline:"none",padding:"3px 2px",boxSizing:"border-box"}} />}
+                        </td>
+                      );
+                    })}
+                    <td style={{position:"sticky",right:26,background:WHITE,zIndex:1,borderLeft:"1px solid "+OLIVE_LIGHT}} />
+                    <td style={{position:"sticky",right:0,background:WHITE,zIndex:1}} />
+                  </tr>
+                  <tr>
+                    <td style={{padding:"6px 8px 10px",fontSize:11,color:MUTED,position:"sticky",left:0,background:WHITE,zIndex:1}}>Labor %</td>
+                    {rosterWeekDates.map((_,di)=>{
+                      const pct = rosterLaborPct(di);
+                      return <td key={di} colSpan={2} style={{padding:"6px 8px 10px",textAlign:"center",fontSize:12,fontWeight:"bold",color:laborPctColor(pct)}}>{pct===null?"—":pct.toFixed(1)+"%"}</td>;
+                    })}
+                    <td style={{position:"sticky",right:26,background:WHITE,zIndex:1,borderLeft:"1px solid "+OLIVE_LIGHT}} />
                     <td style={{position:"sticky",right:0,background:WHITE,zIndex:1}} />
                   </tr>
                 </tfoot>
               </table>
             </div>
-            <button onClick={rosterAddEmployee} style={{marginTop:12,background:OLIVE_LIGHT,color:OLIVE,border:"1px solid "+OLIVE_MID,borderRadius:7,padding:"7px 16px",cursor:"pointer",fontSize:12,fontFamily:"Georgia, serif"}}>+ Add Staff</button>
+            <p style={{color:MUTED,fontSize:10,marginTop:8}}>Sales shown in green are actual Square takings for that day; the editable "est." field is a manual sales target used for days without actuals yet.</p>
+            <button onClick={rosterAddEmployee} style={{marginTop:4,background:OLIVE_LIGHT,color:OLIVE,border:"1px solid "+OLIVE_MID,borderRadius:7,padding:"7px 16px",cursor:"pointer",fontSize:12,fontFamily:"Georgia, serif"}}>+ Add Staff</button>
           </div>
-        )}
+          );
+        })()}
 
         {/* CALENDAR */}
         {view==="calendar"&&(
